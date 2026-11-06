@@ -50,30 +50,30 @@ import Login from './modules/Login'
 import { PWAInstallButton, OfflineIndicator } from './ui'
 
 const MODULE_DEFS = {
-  home: { label: 'Business Overview', icon: LayoutDashboard, component: Home, group: 'analytics' },
-  hq: { label: 'HQ Analytics', icon: Building2, component: Hq, group: 'analytics' },
-  buy: { label: 'Purchases & Weighing', icon: Scale, component: Buy, group: 'operations' },
-  fuel: { label: 'Fishing Fuel & Credit', icon: FuelIcon, component: Fuel, group: 'operations' },
-  maintenance: { label: 'Fleet & Maintenance', icon: Wrench, component: Maintenance, group: 'operations' },
-  stock: { label: 'Stock & Cold Rooms', icon: Warehouse, component: Stock, group: 'inventory' },
-  sales: { label: 'Industry Sales', icon: ShoppingBag, component: Sales, group: 'commercial' },
-  suppliers: { label: 'Fishermen & BMUs', icon: Users, component: Suppliers, group: 'commercial' },
-  quality: { label: 'Quality Inspection', icon: ShieldCheck, component: Quality, group: 'operations' },
-  payments: { label: 'Supplier Payments', icon: DollarSign, component: Payments, group: 'commercial' },
-  transport: { label: 'Cold Chain Transport', icon: Truck, component: Transport, group: 'operations' },
-  expenses: { label: 'Expenses & Landed Cost', icon: Receipt, component: Expenses, group: 'commercial' },
-  compliance: { label: 'FiRCIS & Permits', icon: FileText, component: Compliance, group: 'governance' },
-  reports: { label: 'BI Reports & Exports', icon: BarChart3, component: Reports, group: 'analytics' },
-  audit: { label: 'Audit Trail', icon: ShieldAlert, component: Audit, group: 'governance' },
-  staff: { label: 'Staff & Roles', icon: UserCheck, component: Staff, group: 'governance' }
+  home: { label: 'Business Overview', shortLabel: 'Home', icon: LayoutDashboard, component: Home, group: 'analytics' },
+  hq: { label: 'HQ Analytics', shortLabel: 'HQ', icon: Building2, component: Hq, group: 'analytics' },
+  buy: { label: 'Purchases & Weighing', shortLabel: 'Purchases', icon: Scale, component: Buy, group: 'operations' },
+  fuel: { label: 'Fishing Fuel & Credit', shortLabel: 'Fuel', icon: FuelIcon, component: Fuel, group: 'operations' },
+  maintenance: { label: 'Fleet & Maintenance', shortLabel: 'Fleet', icon: Wrench, component: Maintenance, group: 'operations' },
+  stock: { label: 'Stock & Cold Rooms', shortLabel: 'Stock', icon: Warehouse, component: Stock, group: 'inventory' },
+  sales: { label: 'Industry Sales', shortLabel: 'Sales', icon: ShoppingBag, component: Sales, group: 'commercial' },
+  suppliers: { label: 'Fishermen & BMUs', shortLabel: 'Suppliers', icon: Users, component: Suppliers, group: 'commercial' },
+  quality: { label: 'Quality Inspection', shortLabel: 'Quality', icon: ShieldCheck, component: Quality, group: 'operations' },
+  payments: { label: 'Supplier Payments', shortLabel: 'Payments', icon: DollarSign, component: Payments, group: 'commercial' },
+  transport: { label: 'Cold Chain Transport', shortLabel: 'Transport', icon: Truck, component: Transport, group: 'operations' },
+  expenses: { label: 'Expenses & Landed Cost', shortLabel: 'Expenses', icon: Receipt, component: Expenses, group: 'commercial' },
+  compliance: { label: 'FiRCIS & Permits', shortLabel: 'Compliance', icon: FileText, component: Compliance, group: 'governance' },
+  reports: { label: 'BI Reports & Exports', shortLabel: 'Reports', icon: BarChart3, component: Reports, group: 'analytics' },
+  audit: { label: 'Audit Trail', shortLabel: 'Audit', icon: ShieldAlert, component: Audit, group: 'governance' },
+  staff: { label: 'Staff & Roles', shortLabel: 'Staff', icon: UserCheck, component: Staff, group: 'governance' }
 }
 
 const MODULE_GROUPS = [
-  { id: 'operations', label: 'Operations', defaultTab: 'buy', items: ['buy', 'fuel', 'maintenance', 'quality', 'transport'] },
-  { id: 'inventory', label: 'Live Inventory', defaultTab: 'stock', items: ['stock'] },
-  { id: 'commercial', label: 'Commercial & Sales', defaultTab: 'sales', items: ['sales', 'suppliers', 'payments', 'expenses'] },
-  { id: 'analytics', label: 'Analytics & HQ', defaultTab: 'home', items: ['home', 'hq', 'reports'] },
-  { id: 'governance', label: 'Compliance & Audit', defaultTab: 'compliance', items: ['compliance', 'audit', 'staff'] }
+  { id: 'analytics', label: 'Analytics & HQ', shortGroup: 'HQ & BI', defaultTab: 'home', items: ['home', 'hq', 'reports'] },
+  { id: 'operations', label: 'Operations', shortGroup: 'Lake Ops', defaultTab: 'buy', items: ['buy', 'fuel', 'maintenance', 'quality', 'transport'] },
+  { id: 'inventory', label: 'Live Inventory', shortGroup: 'Cold Room', defaultTab: 'stock', items: ['stock'] },
+  { id: 'commercial', label: 'Commercial & Sales', shortGroup: 'Commercial', defaultTab: 'sales', items: ['sales', 'suppliers', 'payments', 'expenses'] },
+  { id: 'governance', label: 'Compliance & Audit', shortGroup: 'Governance', defaultTab: 'compliance', items: ['compliance', 'audit', 'staff'] }
 ]
 
 const SIDEBAR_ITEMS = [
@@ -112,6 +112,11 @@ export default function App() {
     }
   })
   const [moreOpen, setMoreOpen] = useState(false)
+  const [collapsedGroups, setCollapsedGroups] = useState({})
+
+  const toggleGroup = gid => {
+    setCollapsedGroups(prev => ({ ...prev, [gid]: !prev[gid] }))
+  }
 
   const toggleCollapsed = () => {
     setCollapsed(prev => {
@@ -177,49 +182,55 @@ export default function App() {
       {/* Offline Status PWA Banner */}
       <OfflineIndicator />
 
-      {/* Desktop Enterprise Sidebar (Collapsible Rail) */}
+      {/* Desktop Enterprise Sticky Vertical Icon-Tile Sidebar */}
       <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
-        <div className="flex items-center justify-between">
-          <a href="#/" onClick={() => nav('')} className="sidebar-logo" title="FishTrade ERP">
-            <div className="sidebar-logo-icon">
-              <Fish size={22} className="text-blue-900" />
-            </div>
-            <div className="sidebar-logo-text">
-              <b>FishTrade</b>
-              <small>Tanzania ERP</small>
-            </div>
-          </a>
-        </div>
+        <a href="#/" onClick={() => nav('')} className="sidebar-logo" title="FishTrade ERP">
+          <div className="sidebar-logo-icon">
+            <Fish size={22} className="text-white" />
+          </div>
+          <div className="sidebar-logo-text">
+            <b>FishTrade</b>
+          </div>
+        </a>
 
         <div className="sidebar-nav">
-          {SIDEBAR_ITEMS.filter(isAllowed).map(k => {
-            const item = MODULE_DEFS[k]
-            const Icon = item.icon
-            const badgeCount = badges[k] || 0
-            const active = currentTab === k
+          {MODULE_GROUPS.map((grp, gIdx) => {
+            const visibleItems = grp.items.filter(isAllowed)
+            if (visibleItems.length === 0) return null
+
             return (
-              <button
-                key={k}
-                onClick={() => changeTab(k)}
-                className={`sidebar-link ${active ? 'active' : ''}`}
-                title={item.label}
-              >
-                <Icon size={18} className="shrink-0" />
-                <span>{item.label}</span>
-                {badgeCount > 0 && <span className="sidebar-badge">{badgeCount}</span>}
-              </button>
+              <div key={grp.id} className="flex flex-col gap-1">
+                {gIdx > 0 && <div className="sidebar-group-divider" />}
+                <div className="sidebar-group-micro" title={grp.label}>
+                  {grp.shortGroup}
+                </div>
+                {visibleItems.map(k => {
+                  const item = MODULE_DEFS[k]
+                  const Icon = item.icon
+                  const badgeCount = badges[k] || 0
+                  const active = currentTab === k
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => changeTab(k)}
+                      className={`sidebar-link ${active ? 'active' : ''}`}
+                      title={`${grp.label} · ${item.label}`}
+                    >
+                      <Icon size={21} className="shrink-0" />
+                      <span className="sidebar-label">{item.shortLabel}</span>
+                      {badgeCount > 0 && <span className="sidebar-badge">{badgeCount}</span>}
+                    </button>
+                  )
+                })}
+              </div>
             )
           })}
         </div>
 
         <div className="sidebar-footer">
-          <div className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300">
-            <div className="text-[10px] text-blue-300 font-mono uppercase tracking-wider">Active Station</div>
-            <b className="text-white block truncate">{B.name}</b>
-          </div>
           <button onClick={out} className="sidebar-link text-slate-300 hover:text-white" title="Sign Out">
-            <LogOut size={16} className="shrink-0" />
-            <span>Sign Out</span>
+            <LogOut size={18} className="shrink-0" />
+            <span className="sidebar-label">Sign Out</span>
           </button>
         </div>
       </aside>
@@ -238,19 +249,19 @@ export default function App() {
           </div>
         )}
 
-        {/* Top Header with Modular Tabs (Inspired by BlueTrace image_d49bd67a.png) */}
+        {/* Top Header with Modular Tabs */}
         <header className="top-header">
           <div className="header-left">
             {/* Collapse / Expand Toggle Button */}
             <button
               onClick={toggleCollapsed}
-              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+              className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition shrink-0"
               title={collapsed ? 'Expand sidebar (show labels)' : 'Collapse sidebar (maximum table width)'}
             >
               {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
 
-            <div className="header-title-block">
+            <div className="header-title-block" title={`${T.name} — ${MODULE_DEFS[currentTab]?.label}`}>
               <small>{T.name}</small>
               <h1>{MODULE_DEFS[currentTab]?.label}</h1>
             </div>
@@ -258,7 +269,7 @@ export default function App() {
             {/* Station Switcher */}
             {hq && T.branches.length > 1 ? (
               <div className="branch-select-box hidden sm:flex">
-                <MapPin size={14} className="text-blue-700 shrink-0" />
+                <MapPin size={13} className="text-blue-700 shrink-0" />
                 <select
                   value={B.id}
                   onChange={e => {
@@ -276,14 +287,14 @@ export default function App() {
               </div>
             ) : (
               <div className="branch-select-box hidden sm:flex">
-                <MapPin size={14} className="text-blue-700 shrink-0" />
+                <MapPin size={13} className="text-blue-700 shrink-0" />
                 <span>{B.name}</span>
               </div>
             )}
           </div>
 
-          {/* Center: Top Modular Switcher Tabs (Inspired by BlueTrace image_d49bd67a.png) */}
-          <div className="hidden lg:flex top-module-tabs">
+          {/* Center: Top Modular Switcher Tabs */}
+          <div className="hidden xl:flex top-module-tabs">
             {MODULE_GROUPS.map(g => {
               const isActive = activeGroup === g.id
               return (
@@ -299,6 +310,11 @@ export default function App() {
           </div>
 
           <div className="header-right">
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Ops
+            </span>
+
             {/* PWA Install Button */}
             <PWAInstallButton />
 
@@ -316,9 +332,9 @@ export default function App() {
             <button
               onClick={out}
               title="Sign Out"
-              className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition"
+              className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition shrink-0"
             >
-              <LogOut size={18} />
+              <LogOut size={17} />
             </button>
           </div>
         </header>

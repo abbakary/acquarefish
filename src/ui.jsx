@@ -92,23 +92,38 @@ export function Badge({ children, variant = 'neutral' }) {
   )
 }
 
-export function Modal({ title, subtitle, onClose, children, maxWidth = 'max-w-xl' }) {
+export function Modal({ title, subtitle, onClose, close, children, maxWidth = 'max-w-2xl' }) {
+  const handleClose = onClose || close
+
+  useEffect(() => {
+    if (!handleClose) return
+    const onKey = e => {
+      if (e.key === 'Escape') handleClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handleClose])
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleClose}>
       <div className={`modal-dialog ${maxWidth}`} onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900 m-0">{title}</h3>
+        <div className="modal-header">
+          <div className="min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 m-0 leading-snug">{title}</h3>
             {subtitle && <p className="text-xs text-slate-500 m-0 mt-1">{subtitle}</p>}
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition"
-          >
-            ✕
-          </button>
+          {handleClose && (
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close modal"
+              className="text-slate-400 hover:text-slate-800 hover:bg-slate-200/70 w-8 h-8 rounded-lg flex items-center justify-center transition shrink-0 text-sm font-bold"
+            >
+              ✕
+            </button>
+          )}
         </div>
-        <div className="modal-body overflow-y-auto max-h-[75vh] flex flex-col gap-4">
+        <div className="modal-body">
           {children}
         </div>
       </div>

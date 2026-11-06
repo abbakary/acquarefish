@@ -116,85 +116,118 @@ export default function Landing({ go: nav }) {
         </div>
       </header>
 
-      {/* Hero Section with Authentic Lake Victoria Photography */}
-      <section className="relative bg-slate-950 text-white overflow-hidden py-16 md:py-24 border-b border-slate-800">
+      {/* Hero Section with Crystal-Clear Lake Victoria Photography & Animated Nile Perch */}
+      <section className="relative bg-sky-950 text-white overflow-hidden py-14 md:py-20 border-b border-slate-800">
         <img
           src="/landing/hero.jpg"
           alt="Tanzanian fishermen arriving at Lake Victoria landing site"
-          className="absolute inset-0 w-full h-full object-cover object-center opacity-65"
+          className="absolute inset-0 w-full h-full object-cover object-center opacity-100 brightness-105 contrast-105 saturate-110 animate-hero-pan"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/60 to-slate-950/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/30 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950/50 to-transparent" />
 
-        <div className="relative max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        <div className="relative max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-7 flex flex-col gap-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold w-fit">
-              <Award size={14} /> Purpose-Built for Tanzania Seafood Trade &amp; Lake Victoria Fisheries
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/80 backdrop-blur-md border border-blue-300/40 text-white text-xs font-semibold w-fit shadow-sm">
+              <Award size={14} className="text-amber-300" /> Purpose-Built for Tanzania Seafood Trade &amp; Lake Victoria Fisheries
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight drop-shadow-md">
               Run your fish buying operations from the landing beach to the factory gate.
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-100 max-w-2xl leading-relaxed drop-shadow">
               Eliminate paper weighing logs and lost profits. Digitize fishermen purchases, cold room inventory, HACCP quality checks, and industrial factory dispatches in one unified system.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <button
                 onClick={() => nav('register')}
-                className="btn-primary text-sm py-3 px-6 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-900/30"
+                className="btn-primary text-sm py-3 px-6 bg-emerald-600 hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-950/40"
               >
                 Launch Company ERP <ArrowRight size={16} />
               </button>
               <button
                 onClick={() => nav('login')}
-                className="btn-secondary text-sm py-3 px-5 bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur"
+                className="btn-secondary text-sm py-3 px-5 bg-slate-900/70 text-white border-white/35 hover:bg-slate-900/90 backdrop-blur-md"
               >
                 Sign In to Branch
               </button>
             </div>
 
-            <div className="flex items-center gap-6 pt-4 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center gap-6 pt-3 text-xs text-white/90 font-medium drop-shadow">
               <span className="flex items-center gap-1.5"><CheckCircle2 size={15} className="text-emerald-400" /> 14-Day Free Trial</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 size={15} className="text-emerald-400" /> FiRCIS Compliant</span>
               <span className="flex items-center gap-1.5"><CheckCircle2 size={15} className="text-emerald-400" /> Multi-Branch Ready</span>
             </div>
           </div>
 
-          {/* Real Commercial Catch Showcase Cards */}
+          {/* Animated Real Nile Perch + Live Catch Showcase */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            <div className="bg-slate-900/85 backdrop-blur-md border border-slate-700/80 rounded-2xl p-5 shadow-2xl flex flex-col gap-4">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Lake Victoria Value Chain</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-900/60 text-emerald-300 border border-emerald-700">
+            {/* Live Swimming Nile Perch Card */}
+            <div className="relative rounded-2xl overflow-hidden border border-sky-300/35 bg-gradient-to-br from-sky-900/75 via-blue-950/75 to-slate-950/80 backdrop-blur-md p-4 shadow-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-sky-200 font-semibold">
+                    Lates niloticus · Lake Victoria
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500/25 text-sky-200 border border-sky-400/40">
+                  EXPORT GRADE A
+                </span>
+              </div>
+
+              <div className="relative h-36 sm:h-40 rounded-xl overflow-hidden bg-gradient-to-b from-sky-500/20 via-blue-700/25 to-slate-950/60 border border-white/10 flex items-center justify-center">
+                <div className="w-4/5 h-full flex items-center justify-center animate-swim-nile-perch">
+                  <img
+                    src="/fish/nile-perch.jpg"
+                    alt="Fresh Lake Victoria Nile Perch"
+                    className="w-full h-32 object-cover rounded-xl shadow-lg border border-white/20 brightness-105 contrast-105"
+                  />
+                </div>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-sky-300/15 to-transparent animate-water-shimmer" />
+              </div>
+
+              <div className="mt-2.5 flex items-center justify-between text-xs">
+                <span className="text-slate-200 font-semibold">Fresh Nile Perch (Sangara)</span>
+                <span className="font-mono text-emerald-300 font-bold">0°C – 2°C Chilled</span>
+              </div>
+            </div>
+
+            {/* Commercial Catch Metrics Card */}
+            <div className="bg-slate-900/80 backdrop-blur-md border border-white/15 rounded-2xl p-4 shadow-2xl flex flex-col gap-3">
+              <div className="flex justify-between items-center border-b border-white/10 pb-2.5">
+                <span className="text-xs font-mono uppercase tracking-wider text-slate-300">Lake Victoria Value Chain</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-900/70 text-emerald-300 border border-emerald-600/60">
                   LIVE CATCH DATA
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
-                  <small className="text-slate-400 text-xs block">Monthly Volume</small>
-                  <b className="text-2xl font-mono text-white">12,500 <span className="text-xs text-slate-400">kg</span></b>
+                <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
+                  <small className="text-slate-300 text-xs block">Monthly Volume</small>
+                  <b className="text-xl font-mono text-white">12,500 <span className="text-xs text-slate-300">kg</span></b>
                 </div>
-                <div className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
-                  <small className="text-slate-400 text-xs block">Gross Profit</small>
-                  <b className="text-2xl font-mono text-emerald-400">TZS 18.5M</b>
+                <div className="p-2.5 bg-white/5 rounded-xl border border-white/10">
+                  <small className="text-slate-300 text-xs block">Gross Profit</small>
+                  <b className="text-xl font-mono text-emerald-400">TZS 18.5M</b>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between pt-0.5">
                 <div className="flex items-center gap-3">
                   <div className="flex -space-x-2">
-                    <FishPhoto sp="Nile Perch" size={36} className="ring-2 ring-slate-900" />
-                    <FishPhoto sp="Tilapia" size={36} className="ring-2 ring-slate-900" />
-                    <FishPhoto sp="Dagaa (Sardines)" size={36} className="ring-2 ring-slate-900" />
+                    <FishPhoto sp="Nile Perch" size={34} className="ring-2 ring-slate-900" />
+                    <FishPhoto sp="Tilapia" size={34} className="ring-2 ring-slate-900" />
+                    <FishPhoto sp="Dagaa (Sardines)" size={34} className="ring-2 ring-slate-900" />
                   </div>
                   <div className="text-xs">
                     <b className="text-white block">Commercial Species</b>
-                    <span className="text-slate-400">Nile Perch, Tilapia &amp; Dagaa</span>
+                    <span className="text-slate-300">Nile Perch, Tilapia &amp; Dagaa</span>
                   </div>
                 </div>
-                <span className="text-xs font-mono text-blue-400 font-bold">Grade A Verified</span>
+                <span className="text-xs font-mono text-sky-300 font-bold">Grade A Verified</span>
               </div>
             </div>
           </div>
