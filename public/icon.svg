@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06265f"/>
+      <stop offset="60%" stop-color="#0b3a8c"/>
+      <stop offset="100%" stop-color="#1f78e0"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f28c28"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#ffffff15" stroke-width="8"/>
+  <g transform="translate(96, 126)">
+    <!-- Stylized modern Nile Perch fish silhouette -->
+    <path d="M 40 130 C 90 60, 200 50, 260 110 C 290 80, 310 60, 320 50 C 315 90, 310 120, 290 140 C 310 160, 315 190, 320 230 C 310 220, 290 200, 260 170 C 200 230, 90 220, 40 150 Z" fill="#ffffff" opacity="0.95"/>
+    <!-- Fish eye -->
+    <circle cx="90" cy="130" r="10" fill="#0b3a8c"/>
+    <circle cx="92" cy="128" r="3" fill="#ffffff"/>
+    <!-- Gills -->
+    <path d="M 130 95 C 145 125, 145 155, 130 185" stroke="#0b3a8c" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.4"/>
+    <!-- Scales accent in gold -->
+    <path d="M 170 115 C 185 130, 185 150, 170 165" stroke="url(#gold)" stroke-width="5" stroke-linecap="round" fill="none"/>
+    <path d="M 195 125 C 210 135, 210 145, 195 155" stroke="url(#gold)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  </g>
+  <!-- Text mark ERP -->
+  <text x="256" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="44" fill="#ffffff" letter-spacing="4">FISHTRADE</text>
+  <text x="256" y="454" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="20" fill="url(#gold)" letter-spacing="3">TANZANIA ERP</text>
+</svg>

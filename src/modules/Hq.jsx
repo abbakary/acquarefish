@@ -1,34 +1,381 @@
-import {useState} from 'react'
-import {useS,PLANS,SPECIES,supBal,cusBal,stock} from '../store'
-import {Seg,Btn,Fab,Sheet,Field,Kpis,FishImg,f,tzs} from '../ui'
-const COL=['#1f78e0','#f28c28','#1f9e6b','#8b5cf6','#e11d48','#0891b2'],SC=['#5f747b','#d98b73','#8fa8ba','#6b6258']
-const dAgo=n=>{const x=new Date();x.setDate(x.getDate()-n);return x.toISOString().slice(0,10)}
-const sm=(l,g)=>l.reduce((t,x)=>t+g(x),0)
-const met=(d,from)=>{const ok=x=>!from||(x.date||'')>=from,bs=d.batches.filter(ok),ss=d.sales.filter(ok)
-const rev=sm(ss,x=>x.kg*x.price),cogs=sm(ss,x=>x.cogs),tr=sm((d.trips||[]).filter(ok),x=>x.cost),ex=sm(d.exps.filter(ok),x=>x.amt),ws=sm(d.batches,b=>(b.waste||0)*b.price),gp=rev-cogs
-return {rev,cogs,gp,tr,ex,ws,net:gp-tr-ex-ws,mg:rev?gp/rev*100:0,bkg:sm(bs,b=>b.kg),skg:sm(ss,x=>x.kg),stk:sm(Object.values(stock(d)),v=>v),debt:sm(d.customers,c=>cusBal(d,c.id)),owed:sm(d.suppliers,y=>supBal(d,y.id)),pend:d.batches.filter(b=>b.st==='pending').length}}
-const Line=({days,ser})=>{const W=640,H=190,mx=Math.max(1,...ser.flat()),X=i=>24+i*(W-36)/Math.max(1,days.length-1),Y=v=>H-24-v/mx*(H-44)
-return <svg viewBox={`0 0 ${W} ${H}`} className="chart">{[0,.5,1].map(g=><g key={g}><line x1="24" x2={W-8} y1={Y(mx*g)} y2={Y(mx*g)} stroke="#dbe6f5"/><text x="0" y={Y(mx*g)+3} fontSize="9" fill="#7d93b3">{f(mx*g/1e6)}M</text></g>)}
-{ser.map((q,k)=><polyline key={k} fill="none" stroke={COL[k%6]} strokeWidth="2.6" strokeLinejoin="round" points={q.map((v,i)=>X(i)+','+Y(v)).join(' ')}/>)}
-<text x="24" y={H-6} fontSize="10" fill="#7d93b3">{days[0].slice(5)}</text><text x={W-40} y={H-6} fontSize="10" fill="#7d93b3">{days[days.length-1].slice(5)}</text></svg>}
-const Stk=({p})=><div className="stk">{p.map(([v,c,l])=>v>0&&<i key={l} title={l} style={{flex:v,background:c}}/>)}</div>
-export default function Hq({go}){
-const {T,x,B}=useS();const [p,setP]=useState('30 days');const [o,setO]=useState(false);const [nb,setNb]=useState({name:'',region:''})
-const n=p==='7 days'?7:p==='30 days'?30:0,from=n?dAgo(n):'',lim=PLANS.find(q=>q.id===T.plan)?.branches||1
-const rows=T.branches.map((b,i)=>({b,c:COL[i%6],m:met(b.data,from)})),tot=k=>sm(rows,r=>r.m[k])
-const days=Array.from({length:n||30},(_,i)=>dAgo((n||30)-1-i)),ser=rows.map(r=>days.map(d=>sm(r.b.data.sales.filter(s=>s.date===d),s=>s.kg*s.price)))
-const top=k=>[...rows].sort((a,b)=>b.m[k]-a.m[k])[0],mx=Math.max(1,...rows.map(r=>Math.max(r.m.rev,r.m.cogs+r.m.tr+r.m.ex+r.m.ws)))
-const tpk=[...rows].sort((a,b)=>b.m.tr/(b.m.bkg||1)-a.m.tr/(a.m.bkg||1))[0]
-const ins=[`🏆 ${top('rev').b.name} leads on revenue (${tzs(top('rev').m.rev)}).`,`📈 Best gross margin: ${top('mg').b.name} at ${top('mg').m.mg.toFixed(1)}%.`,`🚚 Highest transport cost per kg bought: ${tpk.b.name} (TZS ${f(tpk.m.tr/(tpk.m.bkg||1))}/kg).`,`🔍 ${tot('pend')} deliveries awaiting inspection across branches.`]
-return <div className="pg"><div className="toolbar"><Seg v={p} set={setP} items={['7 days','30 days','All']}/><Fab onClick={()=>setO(true)}>＋ Branch</Fab></div>
-<Kpis a={[['Group revenue',tzs(tot('rev')),'💰'],['Group net profit',tzs(tot('net')),'📊'],['Kg bought',f(tot('bkg'))+' kg','🎣'],['Kg sold',f(tot('skg'))+' kg','🚚'],['Stock on hand',f(tot('stk'))+' kg','🧊'],['Transport cost',tzs(tot('tr')),'🛻'],['Customer debts',tzs(tot('debt')),'🏭'],['Owed to suppliers',tzs(tot('owed')),'💵']]}/>
-<div className="card"><h4>Insights</h4>{ins.map(t=><div key={t} className="ins">{t}</div>)}</div>
-<div className="card wide"><h4>Revenue trend by branch</h4><Line days={days} ser={ser}/><div>{rows.map(r=><span className="chp" key={r.b.id}><i className="dot" style={{background:r.c}}/>{r.b.name}</span>)}</div></div>
-<div className="card"><h4>Revenue vs costs</h4>{rows.map(r=>{const c=r.m.cogs+r.m.tr+r.m.ex+r.m.ws;return <div className="barx" key={r.b.id}><div className="bl"><b>{r.b.name}</b><span className={r.m.net>=0?'pos':'neg'}>Net {tzs(r.m.net)}</span></div>
-<div className="tr"><i style={{width:r.m.rev/mx*100+'%',background:r.c}}/></div><div className="tr gy"><i style={{width:c/mx*100+'%'}}/></div></div>})}<p className="mut">Colour = revenue · grey = total costs</p></div>
-<div className="card"><h4>Cost structure</h4>{rows.map(r=><div className="barx" key={r.b.id}><div className="bl"><span>{r.b.name}</span><span className="mut">margin {r.m.mg.toFixed(1)}%</span></div><Stk p={[[r.m.cogs,'#1f78e0','Fish cost'],[r.m.tr,'#f28c28','Transport'],[r.m.ex,'#8b5cf6','Expenses'],[r.m.ws,'#e11d48','Wastage']]}/></div>)}<div><span className="chp"><i className="dot" style={{background:'#1f78e0'}}/>Fish</span><span className="chp"><i className="dot" style={{background:'#f28c28'}}/>Transport</span><span className="chp"><i className="dot" style={{background:'#8b5cf6'}}/>Expenses</span><span className="chp"><i className="dot" style={{background:'#e11d48'}}/>Wastage</span></div></div>
-<div className="card"><h4>Species mix (kg bought)</h4>{rows.map(r=><div className="barx" key={r.b.id}><div className="bl"><span>{r.b.name}</span></div><Stk p={SPECIES.map((s,i)=>[sm(r.b.data.batches.filter(b=>b.sp===s&&(!from||b.date>=from)),b=>b.kg),SC[i],s])}/></div>)}<div className="fcrow">{SPECIES.map(s=><span key={s} className="fc"><FishImg sp={s} s={26}/>{s.split(' (')[0]}</span>)}</div></div>
-<div className="card wide"><h4>Branch comparison</h4><div className="tbl"><table><thead><tr>{['Branch','Revenue','Gross margin','Net profit','Kg bought','Kg sold','Stock kg','Transport','Debts',''].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>
-{rows.map(r=><tr key={r.b.id}><td><b>{r.b.name}</b>{r.b.id===B.id&&' ●'}</td><td>{f(r.m.rev)}</td><td>{r.m.mg.toFixed(1)}%</td><td className={r.m.net>=0?'pos':'neg'}>{f(r.m.net)}</td><td>{f(r.m.bkg)}</td><td>{f(r.m.skg)}</td><td>{f(r.m.stk)}</td><td>{f(r.m.tr)}</td><td>{f(r.m.debt)}</td><td><Btn c="sm" onClick={()=>{x.switchBranch(r.b.id);go('home')}}>Open</Btn></td></tr>)}</tbody>
-<tfoot><tr><th>Group</th><th>{f(tot('rev'))}</th><th>{(tot('rev')?tot('gp')/tot('rev')*100:0).toFixed(1)}%</th><th>{f(tot('net'))}</th><th>{f(tot('bkg'))}</th><th>{f(tot('skg'))}</th><th>{f(tot('stk'))}</th><th>{f(tot('tr'))}</th><th>{f(tot('debt'))}</th><th/></tr></tfoot></table></div></div>
-{o&&<Sheet title="Add branch" onClose={()=>setO(false)}>{T.branches.length>=lim?<p className="neg">Your {T.plan} plan allows {lim} branch(es). Upgrade to add more.</p>:<><Field label="Branch name"><input value={nb.name} onChange={e=>setNb({...nb,name:e.target.value})}/></Field><Field label="Region / landing site"><input value={nb.region} onChange={e=>setNb({...nb,region:e.target.value})}/></Field><Btn c="pri" disabled={!nb.name||!nb.region} onClick={()=>{x.addBranch(nb.name,nb.region);setO(false);setNb({name:'',region:''})}}>Create branch</Btn></>}</Sheet>}</div>}
+import React, { useState } from 'react'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  CartesianGrid
+} from 'recharts'
+import {
+  Building2,
+  TrendingUp,
+  MapPin,
+  Plus,
+  ArrowRight,
+  ShieldCheck,
+  Award,
+  DollarSign,
+  Truck,
+  Warehouse,
+  Anchor
+} from 'lucide-react'
+import { useS, PLANS, SPECIES, supBal, cusBal, stock } from '../store'
+import { Modal, Field, Badge, FishPhoto, f, tzs } from '../ui'
+
+const BRANCH_COLORS = ['#0b3a8c', '#ea580c', '#10b981', '#6366f1', '#ec4899']
+
+const sm = (l, g) => (l || []).reduce((t, x) => t + g(x), 0)
+
+const met = (d, from) => {
+  if (!d) {
+    return {
+      rev: 0, cogs: 0, gp: 0, tr: 0, ex: 0, ws: 0, net: 0, mg: 0,
+      bkg: 0, skg: 0, stk: 0, debt: 0, owed: 0, pend: 0
+    }
+  }
+  const ok = x => !from || (x.date || '') >= from
+  const bs = (d.batches || []).filter(ok)
+  const ss = (d.sales || []).filter(ok)
+  const rev = sm(ss, x => (x.kg || 0) * (x.price || 0))
+  const cogs = sm(ss, x => x.cogs || 0)
+  const tr = sm((d.trips || []).filter(ok), x => x.cost || 0)
+  const ex = sm((d.exps || []).filter(ok), x => x.amt || 0)
+  const ws = sm(d.batches || [], b => (b.waste || 0) * (b.price || 0))
+  const gp = rev - cogs
+  return {
+    rev,
+    cogs,
+    gp,
+    tr,
+    ex,
+    ws,
+    net: gp - tr - ex - ws,
+    mg: rev ? (gp / rev) * 100 : 0,
+    bkg: sm(bs, b => b.kg || 0),
+    skg: sm(ss, x => x.kg || 0),
+    stk: sm(Object.values(stock(d || {})), v => v || 0),
+    debt: sm(d.customers || [], c => cusBal(d, c.id)),
+    owed: sm(d.suppliers || [], y => supBal(d, y.id)),
+    pend: (d.batches || []).filter(b => b.st === 'pending').length
+  }
+}
+
+export default function Hq({ go }) {
+  const { T, x, B } = useS()
+  const [period, setPeriod] = useState('30 days')
+  const [open, setOpen] = useState(false)
+  const [nb, setNb] = useState({ name: '', region: 'Mwanza' })
+
+  if (!T) {
+    return (
+      <div className="page-body">
+        <div className="panel p-8 text-center text-slate-500">
+          <Building2 size={40} className="mx-auto mb-3 text-slate-400" />
+          <h3 className="text-base font-bold text-slate-800">Executive HQ Analytics</h3>
+          <p className="text-xs text-slate-500 mt-1">
+            Please log in with an administrator or multi-branch account to view cross-station consolidated metrics.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const n = period === '7 days' ? 7 : period === '30 days' ? 30 : 0
+  const dAgo = days => {
+    const d = new Date()
+    d.setDate(d.getDate() - days)
+    return d.toISOString().slice(0, 10)
+  }
+  const from = n ? dAgo(n) : ''
+  const lim = PLANS.find(q => q.id === T?.plan)?.branches || 1
+  const branches = T?.branches || []
+
+  const rows = branches.map((b, i) => ({
+    b,
+    color: BRANCH_COLORS[i % 5],
+    m: met(b.data, from)
+  }))
+
+  const tot = k => sm(rows, r => r.m[k])
+
+  // Recharts comparison data
+  const comparisonData = rows.map(r => ({
+    name: (r.b?.name || 'Station').split(' (')[0],
+    revenue: r.m.rev,
+    costs: r.m.cogs + r.m.tr + r.m.ex + r.m.ws,
+    netProfit: r.m.net,
+    volumeKg: r.m.bkg
+  }))
+
+  return (
+    <div className="page-body">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 m-0">Executive Multi-Branch Analytics</h2>
+          <p className="text-xs text-slate-500 m-0 mt-0.5">
+            Cross-branch consolidation for {T?.name || 'Fisheries Group'} across Lake Victoria &amp; Lake Tanganyika value chains.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-200/80 p-0.5 rounded-lg text-xs font-semibold">
+            {['7 days', '30 days', 'All time'].map(t => (
+              <button
+                key={t}
+                onClick={() => setPeriod(t)}
+                className={`px-3 py-1.5 rounded-md transition ${period === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setOpen(true)} className="btn-primary text-xs">
+            <Plus size={14} /> Add Station
+          </button>
+        </div>
+      </div>
+
+      {/* Group Level KPIs */}
+      <div className="kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-icon-wrap">
+            <DollarSign size={22} />
+          </div>
+          <div className="kpi-content">
+            <small>Group Revenue</small>
+            <b>{tzs(tot('rev'))}</b>
+            <span className="kpi-sub">All branches consolidated</span>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrap green">
+            <TrendingUp size={22} />
+          </div>
+          <div className="kpi-content">
+            <small>Consolidated Net Profit</small>
+            <b>{tzs(tot('net'))}</b>
+            <span className="kpi-sub text-emerald-600 font-semibold">After logistics &amp; losses</span>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrap amber">
+            <Anchor size={22} />
+          </div>
+          <div className="kpi-content">
+            <small>Total Fish Sourced</small>
+            <b>{f(tot('bkg'))} <span className="text-xs font-sans text-slate-400">kg</span></b>
+            <span className="kpi-sub">{f(tot('skg'))} kg delivered</span>
+          </div>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-icon-wrap purple">
+            <Building2 size={22} />
+          </div>
+          <div className="kpi-content">
+            <small>Landing Branches</small>
+            <b>{branches.length} <span className="text-xs font-sans text-slate-400">sites</span></b>
+            <span className="kpi-sub">{T?.plan || 'Business'} Tier</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Branch Recharts Visual Comparison */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Revenue vs. Operating Costs by Branch</h3>
+              <p>Performance comparison in TZS</p>
+            </div>
+          </div>
+          <div className="w-full h-72 min-h-[288px]">
+            <ResponsiveContainer width="100%" height={280} minHeight={280}>
+              <BarChart data={comparisonData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
+                <Tooltip
+                  formatter={(val, name) => [tzs(val), name === 'revenue' ? 'Revenue' : 'Total Costs']}
+                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="revenue" name="Sales Revenue" fill="#0b3a8c" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="costs" name="Total Landed Costs" fill="#ea580c" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-header">
+            <div>
+              <h3>Fish Volume Sourced by Branch</h3>
+              <p>Kilograms landed at each station</p>
+            </div>
+          </div>
+          <div className="w-full h-72 min-h-[288px]">
+            <ResponsiveContainer width="100%" height={280} minHeight={280}>
+              <BarChart data={comparisonData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" />
+                <Tooltip
+                  formatter={val => [`${f(val)} kg`, 'Volume Sourced']}
+                  contentStyle={{ backgroundColor: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}
+                />
+                <Bar dataKey="volumeKg" name="Kilograms Purchased" fill="#10b981" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Branch Side-by-Side Table */}
+      <div className="panel p-0 overflow-hidden">
+        <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 m-0">Landing Station Comparison Matrix</h3>
+            <p className="text-xs text-slate-500 m-0">Click 'Switch Branch' to navigate operational data to that specific station</p>
+          </div>
+          <span className="text-xs text-slate-500 font-semibold font-mono">
+            Active: <strong>{B?.name || 'All Stations'}</strong>
+          </span>
+        </div>
+        <div className="data-table-wrap border-0 rounded-none">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Branch Station</th>
+                <th>Revenue</th>
+                <th>Gross Margin</th>
+                <th>Net Profit</th>
+                <th>Purchased (kg)</th>
+                <th>Sold (kg)</th>
+                <th>Cold Stock (kg)</th>
+                <th>Transport</th>
+                <th>Debts Owed</th>
+                <th className="text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.b.id} className={B && r.b.id === B.id ? 'bg-blue-50/40' : ''}>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={14} className={B && r.b.id === B.id ? 'text-blue-700' : 'text-slate-400'} />
+                      <b className="text-slate-900">{r.b.name}</b>
+                      {B && r.b.id === B.id && <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">CURRENT</span>}
+                    </div>
+                  </td>
+                  <td>
+                    <b className="font-mono text-slate-900">{tzs(r.m.rev)}</b>
+                  </td>
+                  <td>
+                    <span className="font-mono font-bold text-emerald-700">{r.m.mg.toFixed(1)}%</span>
+                  </td>
+                  <td>
+                    <b className={`font-mono ${r.m.net >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                      {tzs(r.m.net)}
+                    </b>
+                  </td>
+                  <td>
+                    <span className="font-mono text-slate-800">{f(r.m.bkg)} kg</span>
+                  </td>
+                  <td>
+                    <span className="font-mono text-slate-800">{f(r.m.skg)} kg</span>
+                  </td>
+                  <td>
+                    <b className="font-mono text-blue-800">{f(r.m.stk)} kg</b>
+                  </td>
+                  <td>
+                    <span className="font-mono text-slate-600">{tzs(r.m.tr)}</span>
+                  </td>
+                  <td>
+                    <span className="font-mono text-slate-600">{tzs(r.m.debt)}</span>
+                  </td>
+                  <td className="text-right">
+                    {!B || r.b.id !== B.id ? (
+                      <button
+                        onClick={() => {
+                          x.switchBranch(r.b.id)
+                          go('home')
+                        }}
+                        className="btn-primary text-xs py-1 px-2.5 bg-blue-800 hover:bg-blue-900"
+                      >
+                        Switch View
+                      </button>
+                    ) : (
+                      <span className="text-xs text-blue-700 font-bold">Viewing</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Branch Modal */}
+      {open && (
+        <Modal
+          title="Add New Landing Station Branch"
+          subtitle={`Your ${T.plan} plan allows up to ${lim} stations.`}
+          onClose={() => setOpen(false)}
+        >
+          {T.branches.length >= lim ? (
+            <p className="text-sm text-rose-700">
+              Station limit reached for your current subscription. Please upgrade to Business or Enterprise.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <Field label="Landing Station Name">
+                <input
+                  type="text"
+                  placeholder="e.g. Bukoba Kemondo Bay Station"
+                  value={nb.name}
+                  onChange={e => setNb({ ...nb, name: e.target.value })}
+                  className="input-field"
+                />
+              </Field>
+
+              <Field label="Region / Location">
+                <select
+                  value={nb.region}
+                  onChange={e => setNb({ ...nb, region: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="Mwanza">Mwanza (Lake Victoria)</option>
+                  <option value="Kigoma">Kigoma (Lake Tanganyika)</option>
+                  <option value="Musoma">Musoma (Mara Region)</option>
+                  <option value="Kagera">Kagera / Bukoba</option>
+                  <option value="Dar es Salaam">Dar es Salaam (Marine Port)</option>
+                </select>
+              </Field>
+
+              <button
+                type="button"
+                disabled={!nb.name}
+                onClick={() => {
+                  x.addBranch(nb.name, nb.region)
+                  setOpen(false)
+                  setNb({ name: '', region: 'Mwanza' })
+                }}
+                className="btn-primary mt-2"
+              >
+                Create Station
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
+    </div>
+  )
+}
