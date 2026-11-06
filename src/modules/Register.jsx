@@ -1,0 +1,21 @@
+import {useState} from 'react'
+import {useS,PLANS} from '../store'
+import {Field,Btn,Scene,tzs} from '../ui'
+const RSTEPS=['Company','Owner','Branches','Plan','Review']
+export default function Register({go}){
+const {db,x}=useS();const [i,setI]=useState(0);const [d,setD]=useState({company:'',sector:'Fish buying & trading',region:'',name:'',phone:'',email:'',username:'',pin:'',branches:[{name:'Head office',region:''}],plan:'Business',demo:true})
+const set=k=>e=>setD({...d,[k]:e.target.value}),pl=PLANS.find(p=>p.id===d.plan)
+const taken=db.tenants.some(t=>t.staff.some(y=>y.username===d.username))||d.username==='admin'
+const err=[!d.company.trim()||!d.region.trim()?'Enter the company name and region.':'',!d.name.trim()||!/^[a-z0-9._]{3,}$/.test(d.username)?'Enter your name and a lowercase username (3+ characters).':taken?'That username is taken.':!/^\d{4,6}$/.test(d.pin)?'PIN must be 4 to 6 digits.':'',d.branches.some(b=>!b.name.trim())?'Name every branch.':d.branches.length>pl.branches?'Your plan allows '+pl.branches+' branch(es).':'','',''][i]
+const sb=(k,v,j)=>setD({...d,branches:d.branches.map((b,n)=>n===j?{...b,[k]:v}:b)})
+return <div className="pub auth"><div className="authL"><Scene/><div className="authT"><h2>🐟 FishTrade ERP</h2><p>Set up your fish business in minutes.</p><ul><li>Purchasing, stock, sales and transport in one system</li><li>Multi-branch with HQ analytics</li><li>14-day free trial, no card needed</li></ul></div></div>
+<div className="authR"><div className="authC wide"><button className="lk" onClick={()=>go('')}>← Back to website</button><h2>Create your company account</h2>
+<div className="steps">{RSTEPS.map((s,n)=><div key={s} className={'st'+(n<=i?' on':'')}><i>{n+1}</i>{s}</div>)}</div>
+{i===0&&<><Field label="Company name"><input value={d.company} onChange={set('company')}/></Field><Field label="Business type"><select value={d.sector} onChange={set('sector')}>{['Fish buying & trading','Fish processing','Fish export','Cooperative / group'].map(s=><option key={s}>{s}</option>)}</select></Field><Field label="Region"><input value={d.region} onChange={set('region')} placeholder="e.g. Mwanza"/></Field></>}
+{i===1&&<><Field label="Your full name"><input value={d.name} onChange={set('name')}/></Field><div className="two"><Field label="Phone"><input type="tel" value={d.phone} onChange={set('phone')}/></Field><Field label="Email"><input type="email" value={d.email} onChange={set('email')}/></Field></div><div className="two"><Field label="Username"><input value={d.username} autoCapitalize="none" onChange={e=>setD({...d,username:e.target.value.toLowerCase()})}/></Field><Field label="PIN (4-6 digits)"><input type="password" inputMode="numeric" value={d.pin} onChange={set('pin')}/></Field></div></>}
+{i===2&&<>{d.branches.map((b,j)=><div className="two" key={j}><Field label={'Branch '+(j+1)+' name'}><input value={b.name} onChange={e=>sb('name',e.target.value,j)}/></Field><Field label="Region / site"><input value={b.region} placeholder={d.region} onChange={e=>sb('region',e.target.value,j)}/></Field></div>)}<Btn c="ghost" onClick={()=>setD({...d,branches:[...d.branches,{name:'',region:''}]})}>＋ Add another branch</Btn></>}
+{i===3&&<div className="plans">{PLANS.map(p=><div key={p.id} className={'opt col'+(d.plan===p.id?' sel':'')} onClick={()=>setD({...d,plan:p.id})}><b>{p.id}</b><b>{tzs(p.price)}/mo</b><span className="mut">{p.note}<br/>{p.branches>50?'Unlimited':p.branches} branch(es) · {p.users>500?'Unlimited':p.users} users</span></div>)}</div>}
+{i===4&&<><div className="rcpt"><b>{d.company}</b><div>{d.sector} · {d.region}</div><div>Owner: {d.name} (@{d.username})</div><div>Branches: {d.branches.map(b=>b.name).join(', ')}</div><div>Plan: {d.plan} · 14-day free trial</div></div><label className="chk"><input type="checkbox" checked={d.demo} onChange={e=>setD({...d,demo:e.target.checked})}/> Fill the first branch with sample data so I can explore</label></>}
+{err&&<p className="neg">{err}</p>}
+<div className="two">{i>0?<Btn c="ghost" onClick={()=>setI(i-1)}>← Back</Btn>:<span/>}{i<4?<Btn c="pri" disabled={!!err} onClick={()=>setI(i+1)}>Next →</Btn>:<Btn c="pri" onClick={()=>{x.register(d);go('')}}>✓ Create account</Btn>}</div>
+<p className="mut">Already registered? <button className="lk" onClick={()=>go('login')}>Sign in</button></p></div></div></div>}
