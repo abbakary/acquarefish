@@ -39,7 +39,7 @@ export default function Settlement() {
   const suppliers = s.suppliers || []
   const boats = s.boats || []
   const seasons = s.seasons || []
-  const activeSeason = seasons.find(sn => sn.id === s.activeSeasonId) || seasons[0]
+  const activeSeason = seasons.find(sn => sn.id === s.activeSeasonId) || seasons[0] || { id: 'seas_2026_q1', code: '2026-Q1', name: 'Lake Victoria High Season 2026-Q1', status: 'Open' }
 
   // Totals & KPIs
   const totalSettlementsCount = settlements.length
@@ -282,9 +282,8 @@ export default function Settlement() {
                   return (
                     <tr key={st.id} className="hover:bg-slate-50/80 transition">
                       <td className="font-mono font-bold text-blue-900">{st.no}</td>
-                      <td>
-                        <span className="text-xs text-slate-700 block">{st.date}</span>
-                        <span className="text-[11px] text-slate-400 font-mono">{fmtT(st.at || st.date)}</span>
+                      <td className="whitespace-nowrap font-mono text-xs text-slate-700 font-medium">
+                        {st.date}
                       </td>
                       <td>
                         <b className="text-slate-900 block">{sup?.name || st.supId}</b>

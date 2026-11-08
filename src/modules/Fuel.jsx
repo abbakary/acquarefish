@@ -567,9 +567,8 @@ export default function Fuel() {
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/80 transition">
                         <td className="font-mono font-bold text-blue-900">{item.no}</td>
-                        <td>
-                          <span className="text-xs text-slate-700 block font-medium">{item.date}</span>
-                          <span className="text-[11px] text-slate-400 font-mono">{fmtT(item.at || item.date)}</span>
+                        <td className="whitespace-nowrap font-mono text-xs text-slate-700 font-medium">
+                          {item.date}
                         </td>
                         <td>
                           <b className="text-slate-900 block">{sup?.name || item.supId}</b>
@@ -1029,9 +1028,8 @@ export default function Fuel() {
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/80 transition">
                       <td className="font-mono font-bold text-blue-900">{item.no}</td>
-                      <td>
-                        <span className="text-xs text-slate-800 block">{item.date}</span>
-                        <span className="text-[11px] text-slate-400 font-mono">{fmtT(item.at || item.date)}</span>
+                      <td className="whitespace-nowrap font-mono text-xs text-slate-700 font-medium">
+                        {item.date}
                       </td>
                       <td>
                         <b className="text-slate-900 block">{sup?.name || item.supId}</b>

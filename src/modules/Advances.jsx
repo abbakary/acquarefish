@@ -238,9 +238,8 @@ export default function Advances() {
                   return (
                     <tr key={adv.id} className="hover:bg-slate-50/80 transition">
                       <td className="font-mono font-bold text-blue-900">{adv.no}</td>
-                      <td>
-                        <span className="text-xs text-slate-700 block">{adv.date}</span>
-                        <span className="text-[11px] text-slate-400 font-mono">{fmtT(adv.at || adv.date)}</span>
+                      <td className="whitespace-nowrap font-mono text-xs text-slate-700 font-medium">
+                        {adv.date}
                       </td>
                       <td>
                         <b className="text-slate-900 block">{sup?.name || adv.supId}</b>

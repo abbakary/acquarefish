@@ -38,7 +38,7 @@ export default function Catering() {
   const suppliers = s.suppliers || []
   const boats = s.boats || []
   const seasons = s.seasons || []
-  const activeSeason = seasons.find(sn => sn.id === s.activeSeasonId) || seasons[0]
+  const activeSeason = seasons.find(sn => sn.id === s.activeSeasonId) || seasons[0] || { id: 'seas_2026_q1', code: '2026-Q1', name: 'Lake Victoria High Season 2026-Q1', status: 'Open' }
 
   // Totals & KPIs
   const totalAdvancesIssued = advances.reduce((sum, x) => sum + (x.amountIssued || 0), 0)

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
-const KEY = 'fishtrade.v8'
+const KEY = 'fishtrade.v9'
 const today = () => new Date().toISOString().slice(0, 10)
 export const SPECIES = ['Nile Perch', 'Tilapia', 'Dagaa (Sardines)', 'Catfish']
 export const SITES = [
@@ -19,13 +19,13 @@ export const COLD_ROOMS = [
 export const ROLES = {
   Owner: 0,
   'General Manager': 0,
-  'Purchasing Officer': ['home', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'stock', 'transport', 'reports'],
+  'Purchasing Officer': ['home', 'crew', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'stock', 'transport', 'reports'],
   'Quality Inspector': ['home', 'quality', 'stock', 'reports'],
-  Storekeeper: ['home', 'stock', 'fuel', 'maintenance', 'gear', 'quality', 'reports'],
-  Accountant: ['home', 'hq', 'payments', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'expenses', 'suppliers', 'sales', 'transport', 'reports'],
+  Storekeeper: ['home', 'crew', 'stock', 'fuel', 'maintenance', 'gear', 'quality', 'reports'],
+  Accountant: ['home', 'crew', 'hq', 'payments', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'expenses', 'suppliers', 'sales', 'transport', 'reports'],
   'Sales Officer': ['home', 'sales', 'transport', 'stock', 'reports'],
   'Transport Officer': ['home', 'transport', 'maintenance'],
-  Auditor: ['home', 'hq', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'stock', 'sales', 'suppliers', 'quality', 'payments', 'transport', 'expenses', 'compliance', 'audit', 'reports']
+  Auditor: ['home', 'crew', 'hq', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'stock', 'sales', 'suppliers', 'quality', 'payments', 'transport', 'expenses', 'compliance', 'audit', 'reports']
 }
 
 export const uid = p => p + Math.random().toString(36).slice(2, 8)
@@ -219,7 +219,12 @@ export const mkBranch = (site, k = 1, demo = true) => {
     cateringExpenses: [],
     boatProjects: [],
     advances: [],
-    settlements: []
+    settlements: [],
+    boatCrewAssignments: [],
+    kibaluaEngagements: [],
+    fishermanExitRecords: [],
+    boatExpenseAllocations: [],
+    activeBoatId: 'boat0'
   }
 
   if (!demo) return d
@@ -290,75 +295,384 @@ export const mkBranch = (site, k = 1, demo = true) => {
   d.boats = [
     {
       id: 'boat0',
-      regNo: 'TZN-304',
+      code: 'FISH-001',
+      regNo: 'FISH-001',
+      altReg: 'TZN-304',
       name: 'MV Furaha',
-      ownerType: 'Fisherman-owned',
-      ownerId: 's0',
-      captain: 'Mzee Juma',
+      ownerType: 'Company-managed',
+      ownerId: 'company',
+      captain: 'John Michael',
+      operation: 'Company-managed',
+      seasonId: 'seas_2026_q1',
+      landingSite: 'Kigoma Landing Site',
       engine: 'Yamaha Outboard 40HP 2-Stroke',
       boatType: 'Planked Wooden Mashua (10m)',
-      status: 'Operational',
+      status: 'Active',
+      operationalStatus: 'Operational',
       engineHours: 340,
       lastService: d0(14),
-      notes: 'Equipped with insulated fish boxes and night floodlights',
+      notes: 'Company-managed vessel with 4 permanent crew and occasional Kibalua engagements',
       crewMembers: [
-        { name: 'Hamisi Juma', role: 'First Mate / Net Handler', phone: '0754 112 301', nida: '19940212-33101-001' },
-        { name: 'Bakari Ally', role: 'Engine Operator & Mechanic', phone: '0768 440 291', nida: '19910518-33101-002' },
-        { name: 'Daudi Omari', role: 'Deep Water Line Fisher', phone: '0713 902 119', nida: '19960909-33101-003' }
+        { name: 'John Michael', role: 'Captain', phone: '0754 289 110', type: 'Permanent' },
+        { name: 'Peter Joseph', role: 'Crew', phone: '0768 221 405', type: 'Permanent' },
+        { name: 'Musa Ally', role: 'Crew', phone: '0782 119 402', type: 'Permanent' },
+        { name: 'Ali Hassan', role: 'Crew', phone: '0755 994 301', type: 'Permanent' }
       ]
     },
     {
       id: 'boat1',
-      regNo: 'TZN-108',
+      code: 'FISH-002',
+      regNo: 'FISH-002',
+      altReg: 'TZN-108',
       name: 'Kigoma Star 01',
       ownerType: 'BMU-owned',
       ownerId: 's1',
       captain: 'Ally Katonga',
+      operation: 'BMU-managed',
+      seasonId: 'seas_2026_q1',
+      landingSite: 'Katonga BMU Beach',
       engine: 'Yamaha 25HP Outboard',
       boatType: 'Fiberglass Fishing Canoe (8m)',
-      status: 'Operational',
+      status: 'Active',
+      operationalStatus: 'Operational',
       engineHours: 510,
       lastService: d0(20),
       notes: 'BMU night fishing vessel with pressure lanterns',
       crewMembers: [
-        { name: 'Rashidi Mwinyi', role: 'Net Handler (Dagaa)', phone: '0755 221 441', nida: '19890412-22101-004' },
-        { name: 'Khalfan Saidi', role: 'Boat Steersman', phone: '0714 883 192', nida: '19931201-22101-005' }
+        { name: 'Ally Katonga', role: 'Captain', phone: '0768 991 422', type: 'Permanent' },
+        { name: 'Rashidi Mwinyi', role: 'Crew', phone: '0755 221 441', type: 'Permanent' }
       ]
     },
     {
       id: 'boat2',
-      regNo: 'TZN-205',
+      code: 'FISH-003',
+      regNo: 'FISH-003',
+      altReg: 'TZN-205',
       name: 'MV Victoria Queen',
       ownerType: 'Company-owned',
       ownerId: 'company',
-      captain: 'Capt. Omary & Crew',
+      captain: 'Capt. Omary',
+      operation: 'Company-managed',
+      seasonId: 'seas_2026_q1',
+      landingSite: 'Mwigobero Pier',
       engine: 'Suzuki 60HP 4-Stroke Lean Burn',
       boatType: 'Heavy Wooden Transport Dhow (12m)',
       status: 'Under Maintenance',
+      operationalStatus: 'Under Maintenance',
       engineHours: 780,
       lastService: d0(3),
       notes: 'Company collection vessel for offshore islands',
       crewMembers: [
-        { name: 'Selemani Omary', role: 'Chief Engineer', phone: '0767 114 990', nida: '19820711-11002-006' },
-        { name: 'Baraka John', role: 'Deck Hand & Weighing Lead', phone: '0718 332 441', nida: '19950319-11002-007' }
+        { name: 'Capt. Omary', role: 'Captain', phone: '0767 114 990', type: 'Permanent' },
+        { name: 'Baraka John', role: 'Crew', phone: '0718 332 441', type: 'Permanent' }
       ]
     },
     {
       id: 'boat3',
-      regNo: 'TZN-412',
+      code: 'FISH-004',
+      regNo: 'FISH-004',
+      altReg: 'TZN-412',
       name: 'Ziwa Express',
       ownerType: 'Fisherman-owned',
       ownerId: 's3',
       captain: 'Mussa Hamisi',
+      operation: 'Fisherman-owned',
+      seasonId: 'seas_2026_q1',
+      landingSite: 'Ukerewe (Nansio)',
       engine: 'Tohatsu 30HP Outboard',
       boatType: 'Planked Canoe (9m)',
-      status: 'Operational',
+      status: 'Active',
+      operationalStatus: 'Operational',
       engineHours: 190,
       lastService: d0(30),
       notes: 'Tilapia & Dagaa gill netter',
       crewMembers: [
-        { name: 'Athumani Mussa', role: 'Gill Net Hauler', phone: '0784 991 223', nida: '19980104-55102-008' }
+        { name: 'Mussa Hamisi', role: 'Captain', phone: '0782 334 112', type: 'Permanent' },
+        { name: 'Athumani Mussa', role: 'Crew', phone: '0784 991 223', type: 'Permanent' }
       ]
+    }
+  ]
+
+  d.boatCrewAssignments = [
+    {
+      id: 'asg_0',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      supId: 's0',
+      fishermanName: 'John Michael',
+      position: 'Captain',
+      accountType: 'Permanent',
+      phone: '0754 289 110',
+      nida: '19740612-44102-00015',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-01-01',
+      endDate: null,
+      status: 'Active',
+      balance: 450000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Recoverable advances & gear debt owed to company',
+      rateAgreement: 'Vessel Master Catch Share (40%) + Allowance',
+      totalTrips: 42,
+      totalDeliveredKg: 4200,
+      notes: 'Designated Captain / Vessel Master for MV Furaha'
+    },
+    {
+      id: 'asg_1',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      supId: 's_peter',
+      fishermanName: 'Peter Joseph',
+      position: 'Crew',
+      accountType: 'Permanent',
+      phone: '0768 221 405',
+      nida: '19880415-33102-00021',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-01-01',
+      endDate: null,
+      status: 'Active',
+      balance: 180000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Recoverable cash advance & ration debt',
+      rateAgreement: 'Standard Crew Catch Share (20%)',
+      totalTrips: 40,
+      totalDeliveredKg: 4050,
+      notes: 'Net hauler and deck leader'
+    },
+    {
+      id: 'asg_2',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      supId: 's_david',
+      fishermanName: 'David Paulo',
+      position: 'Crew',
+      accountType: 'Permanent',
+      phone: '0714 559 881',
+      nida: '19920311-22104-00045',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-01-01',
+      endDate: '2026-03-20',
+      status: 'Exited',
+      balance: 320000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Unsettled cash advances preserved on central ledger',
+      rateAgreement: 'Standard Crew Catch Share (20%)',
+      totalTrips: 26,
+      totalDeliveredKg: 2800,
+      notes: 'Assignment closed on March 20; left company. Exit record preserved for settlement.'
+    },
+    {
+      id: 'asg_3',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      supId: 's_musa',
+      fishermanName: 'Musa Ally',
+      position: 'Crew',
+      accountType: 'Permanent',
+      phone: '0782 119 402',
+      nida: '19951108-11203-00033',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-01-01',
+      endDate: null,
+      status: 'Active',
+      balance: 90000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Emergency medical advance balance',
+      rateAgreement: 'Standard Crew Catch Share (20%)',
+      totalTrips: 38,
+      totalDeliveredKg: 3900,
+      notes: 'Engine assistant and line handler'
+    },
+    {
+      id: 'asg_4',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      supId: 's_ali',
+      fishermanName: 'Ali Hassan',
+      position: 'Crew',
+      accountType: 'Permanent',
+      phone: '0755 994 301',
+      nida: '19900914-44102-00088',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-03-22',
+      endDate: null,
+      status: 'Active',
+      balance: 50000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Onboarding equipment allocation debt',
+      rateAgreement: 'Standard Crew Catch Share (20%)',
+      totalTrips: 18,
+      totalDeliveredKg: 1950,
+      notes: 'Joined in late March as permanent replacement crew for David Paulo'
+    },
+    {
+      id: 'asg_5',
+      boatId: 'boat1',
+      boatReg: 'FISH-002',
+      boatName: 'Kigoma Star 01',
+      supId: 's1',
+      fishermanName: 'Ally Katonga',
+      position: 'Captain',
+      accountType: 'Permanent',
+      phone: '0768 991 422',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-01-01',
+      endDate: null,
+      status: 'Active',
+      balance: 210000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Fuel advance balance',
+      rateAgreement: 'BMU Fleet Master Share',
+      totalTrips: 34,
+      totalDeliveredKg: 5400,
+      notes: 'BMU night fishing leader'
+    },
+    {
+      id: 'asg_6',
+      boatId: 'boat1',
+      boatReg: 'FISH-002',
+      boatName: 'Kigoma Star 01',
+      supId: 's_rashidi',
+      fishermanName: 'Rashidi Mwinyi',
+      position: 'Crew',
+      accountType: 'Permanent',
+      phone: '0755 221 441',
+      seasonId: 'seas_2026_q1',
+      startDate: '2026-01-01',
+      endDate: null,
+      status: 'Active',
+      balance: 85000,
+      balanceType: 'owed_by_fisherman',
+      balanceMeaning: 'Ration allocation',
+      rateAgreement: 'BMU Crew Share',
+      totalTrips: 32,
+      totalDeliveredKg: 4900,
+      notes: 'Dagaa seine net operator'
+    }
+  ]
+
+  d.kibaluaEngagements = [
+    {
+      id: 'kib_0',
+      no: 'KIB-00101',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      fishermanName: 'Hassan Omari',
+      phone: '0769 334 118',
+      position: 'Crew (Kibalua)',
+      engagementType: 'Kibalua',
+      durationDays: 5,
+      startDate: '2026-04-10',
+      endDate: '2026-04-15',
+      dailyRate: 25000,
+      grossPayable: 125000,
+      advancePaid: 25000,
+      allocatedExpenses: 0,
+      remainingPayable: 100000,
+      tripsCount: 4,
+      paymentStatus: 'Pending Payment',
+      status: 'Completed',
+      seasonId: 'seas_2026_q1',
+      notes: '5-day deep water night expedition; completed all 4 night runs. Remaining TZS 100,000 payable.'
+    },
+    {
+      id: 'kib_1',
+      no: 'KIB-00102',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      fishermanName: 'Kassim Said',
+      phone: '0712 884 902',
+      position: 'Crew (Kibalua)',
+      engagementType: 'Kibalua',
+      durationDays: 2,
+      startDate: '2026-11-06',
+      endDate: '2026-11-08',
+      dailyRate: 30000,
+      grossPayable: 60000,
+      advancePaid: 15000,
+      allocatedExpenses: 5000,
+      remainingPayable: 40000,
+      tripsCount: 2,
+      paymentStatus: 'Active',
+      status: 'Active',
+      seasonId: 'seas_2026_q1',
+      notes: '2-day moonless night net repair & hauling specialist'
+    },
+    {
+      id: 'kib_2',
+      no: 'KIB-00103',
+      boatId: 'boat1',
+      boatReg: 'FISH-002',
+      boatName: 'Kigoma Star 01',
+      fishermanName: 'Juma Ramadhani',
+      phone: '0788 123 456',
+      position: 'Crew (Kibalua)',
+      engagementType: 'Kibalua',
+      durationDays: 1,
+      startDate: '2026-11-07',
+      endDate: '2026-11-07',
+      dailyRate: 25000,
+      grossPayable: 25000,
+      advancePaid: 0,
+      allocatedExpenses: 0,
+      remainingPayable: 25000,
+      tripsCount: 1,
+      paymentStatus: 'Pending Payment',
+      status: 'Completed',
+      seasonId: 'seas_2026_q1',
+      notes: '1-day single night replacement crew for Katonga beach'
+    }
+  ]
+
+  d.fishermanExitRecords = [
+    {
+      id: 'exit_david',
+      assignmentId: 'asg_2',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      fishermanName: 'David Paulo',
+      supId: 's_david',
+      phone: '0714 559 881',
+      position: 'Crew',
+      lastWorkingDate: '2026-03-20',
+      reason: 'Resigned',
+      outstandingAdvances: 320000,
+      unreturnedGear: 'None (all 2 nets returned to store)',
+      finalBalanceDue: 320000,
+      approvedBy: 'Asha Komba (Manager)',
+      approvedDate: '2026-03-21',
+      status: 'Approved & Retained on Ledger',
+      notes: 'David left company in March to relocate to Mwanza. Unsettled balance of TZS 320,000 retained on central ledger for season settlement.'
+    }
+  ]
+
+  d.boatExpenseAllocations = [
+    {
+      id: 'alloc_001',
+      boatId: 'boat0',
+      boatReg: 'FISH-001',
+      boatName: 'MV Furaha',
+      date: '2026-11-04',
+      seasonId: 'seas_2026_q1',
+      expenseType: 'Food & Catering',
+      description: 'Crew rations for 3-day deep lake expedition (Flour, beans, rice, dried sardines)',
+      totalAmount: 100000,
+      rule: 'Equal allocation',
+      splitItems: [
+        { supId: 's0', name: 'John Michael', role: 'Captain', amount: 25000, status: 'Posted to Ledger' },
+        { supId: 's_peter', name: 'Peter Joseph', role: 'Crew', amount: 25000, status: 'Posted to Ledger' },
+        { supId: 's_musa', name: 'Musa Ally', role: 'Crew', amount: 25000, status: 'Posted to Ledger' },
+        { supId: 's_ali', name: 'Ali Hassan', role: 'Crew', amount: 25000, status: 'Posted to Ledger' }
+      ],
+      postedBy: 'Asha Komba (Manager)',
+      notes: 'Allocated equally among 4 active crew members (TZS 25,000 each) and debited to individual statements.'
     }
   ]
 
@@ -953,7 +1267,7 @@ const ST = (n, u, role, br, pin = '1234') => ({
 })
 
 const seedDb = () => ({
-  v: 8,
+  v: 9,
   ses: null,
   plat: {
     admin: { username: 'admin', pin: H('admin123'), name: 'Platform Admin' },
@@ -1015,10 +1329,40 @@ const postLedgerEntry = (p, entry) => {
 
 export function Store({ children }) {
   const [db, setDb] = useState(() => {
+    // 1. Check if v9 exists in localStorage
     try {
       const v = JSON.parse(localStorage.getItem(KEY))
-      if (v && v.v === 8) return v
+      if (v && v.v === 9) {
+        // Guarantee all branches have valid array structures
+        for (const t of v.tenants || []) {
+          for (const b of t.branches || []) {
+            if (b.data) {
+              const fresh = mkBranch(b.region || 'Mwanza', 1, false)
+              b.data.seasons = b.data.seasons && b.data.seasons.length > 0 ? b.data.seasons : fresh.seasons
+              b.data.boats = b.data.boats && b.data.boats.length > 0 ? b.data.boats : fresh.boats
+              b.data.boatCrewAssignments = b.data.boatCrewAssignments && b.data.boatCrewAssignments.length > 0 ? b.data.boatCrewAssignments : fresh.boatCrewAssignments
+              b.data.kibaluaEngagements = b.data.kibaluaEngagements || fresh.kibaluaEngagements || []
+              b.data.fishermanExitRecords = b.data.fishermanExitRecords || fresh.fishermanExitRecords || []
+              b.data.boatExpenseAllocations = b.data.boatExpenseAllocations || fresh.boatExpenseAllocations || []
+              b.data.activeSeasonId = b.data.activeSeasonId || 'seas_2026_q1'
+              b.data.activeBoatId = b.data.activeBoatId || (b.data.boats && b.data.boats[0]?.id) || 'boat0'
+            }
+          }
+        }
+        return v
+      }
     } catch (e) {}
+
+    // 2. Automatically migrate existing user session from fishtrade.v8 if present
+    try {
+      const oldV8 = JSON.parse(localStorage.getItem('fishtrade.v8'))
+      if (oldV8 && oldV8.ses) {
+        const freshDb = seedDb()
+        freshDb.ses = oldV8.ses
+        return freshDb
+      }
+    } catch (e) {}
+
     return seedDb()
   })
 
@@ -1401,14 +1745,68 @@ export function Store({ children }) {
       up(p => {
         p.boats = p.boats || []
         const boatId = uid('boat')
-        p.boats.push({
-          id: boatId,
-          status: 'Operational',
+        const code = (d.code || d.regNo || ('FISH-' + String(p.boats.length + 1).padStart(3, '0'))).trim().toUpperCase()
+        const regNo = (d.regNo || d.code || ('TZN-' + (100 + p.boats.length + 1))).trim().toUpperCase()
+        const name = (d.name || `MV Vessel ${p.boats.length + 1}`).trim()
+        const captainName = (d.captain || '').trim()
+        const operation = d.operation || 'Company-managed'
+
+        const boatObj = {
+          code,
+          regNo,
+          name,
+          captain: captainName || 'Unassigned',
+          phone: d.captainPhone || d.phone || '',
+          captainPhone: d.captainPhone || d.phone || '',
+          operation,
+          ownerType: operation,
+          landingSite: d.landingSite || (p.suppliers[0]?.site || 'Mwanza Main Landing (Kirumba)'),
+          boatType: d.boatType || 'Planked Wooden Mashua (10m)',
+          engine: d.engine || 'Yamaha Outboard 40HP 2-Stroke',
           engineHours: +d.engineHours || 0,
-          lastService: today(),
-          ...d
-        })
-        L(p, `Boat Registered: Added ${d.name} (${d.regNo}) for ${d.captain || 'Captain'}`)
+          fuelCapacityLitres: +d.fuelCapacityLitres || 120,
+          status: d.status || 'Operational',
+          lastService: d.lastService || today(),
+          notes: d.notes || '',
+          createdDate: today(),
+          activeSeasonId: d.seasonId || p.activeSeasonId || 'seas_2026_q1',
+          ...d,
+          id: boatId
+        }
+
+        p.boats.push(boatObj)
+        p.activeBoatId = boatId // automatically select new boat!
+
+        // If a captain name was supplied, auto-create Captain assignment on this vessel!
+        if (captainName) {
+          p.boatCrewAssignments = p.boatCrewAssignments || []
+          const asgId = uid('asg')
+          p.boatCrewAssignments.unshift({
+            id: asgId,
+            boatId,
+            boatReg: regNo,
+            boatName: name,
+            supId: d.supId || ('sup_' + uid('')),
+            fishermanName: captainName,
+            position: 'Captain',
+            accountType: 'Permanent',
+            phone: d.captainPhone || d.phone || '',
+            nida: d.nida || '',
+            seasonId: p.activeSeasonId || 'seas_2026_q1',
+            startDate: today(),
+            endDate: null,
+            status: 'Active',
+            balance: 0,
+            balanceType: 'clear',
+            balanceMeaning: 'Clean Account',
+            rateAgreement: 'Captain Catch Share (30%)',
+            totalTrips: 0,
+            totalDeliveredKg: 0,
+            notes: `Auto-assigned as primary Captain on registration of ${name}`
+          })
+        }
+
+        L(p, `Boat Registered: Added ${name} (${regNo}) with Captain ${captainName || 'Unassigned'} [${operation}]`)
         return p
       }),
 
@@ -1665,21 +2063,57 @@ export function Store({ children }) {
         const issue = p.gearIssues.find(g => g.id === id)
         if (issue) {
           issue.status = d.status || 'Returned'
-          issue.returnedDate = today()
+          issue.returnedDate = d.returnedDate || today()
           issue.returnedCondition = d.returnedCondition || 'Good'
           issue.returnNotes = d.returnNotes || ''
-          
+          issue.liabilityHandling = d.liabilityHandling || (d.status === 'Returned' && d.creditFisherman ? 'Credited to Fisherman' : 'Retained as Fisherman Liability')
+
           // If gear is undamaged and reusable, restock it
           if (d.restock) {
-            issue.items.forEach(it => {
-              const catItem = p.gearItems.find(g => g.id === it.itemId)
+            (issue.items || []).forEach(it => {
+              const catItem = (p.gearItems || []).find(g => g.id === it.itemId)
               if (catItem) {
                 catItem.stock = (catItem.stock || 0) + (+it.qty || 1)
               }
             })
           }
 
-          L(p, `Gear Returned: ${issue.no} recorded as ${issue.status} (${issue.returnedCondition})`)
+          // If creditFisherman is selected and there was recoverable debt:
+          if (d.creditFisherman && issue.recoverable > 0 && issue.supId) {
+            postLedgerEntry(p, {
+              supId: issue.supId,
+              boatId: issue.boatId,
+              seasonId: issue.seasonId || p.activeSeasonId || 'seas_2026_q1',
+              date: d.returnedDate || today(),
+              type: 'Gear Return Credit',
+              debit: 0,
+              credit: issue.recoverable,
+              source: 'gear',
+              refId: issue.id,
+              ref: issue.no,
+              notes: `Gear returned in ${issue.returnedCondition} condition (${issue.no}) - liability credited`,
+              createdBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Storekeeper'
+            })
+            issue.recoverable = 0
+          } else if (d.companyWriteOff && issue.recoverable > 0 && issue.supId) {
+            postLedgerEntry(p, {
+              supId: issue.supId,
+              boatId: issue.boatId,
+              seasonId: issue.seasonId || p.activeSeasonId || 'seas_2026_q1',
+              date: d.returnedDate || today(),
+              type: 'Gear Loss Write-Off',
+              debit: 0,
+              credit: issue.recoverable,
+              source: 'gear',
+              refId: issue.id,
+              ref: issue.no,
+              notes: `Equipment lost/damaged at sea (${issue.no}) - absorbed as company emergency expense`,
+              createdBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Manager'
+            })
+            issue.recoverable = 0
+          }
+
+          L(p, `Gear Returned / Inspected: ${issue.no} recorded as ${issue.status} (${issue.returnedCondition}) · Liability: ${issue.liabilityHandling}`)
         }
         return p
       }),
@@ -2127,6 +2561,264 @@ export function Store({ children }) {
           b.crewMembers = crewMembers
           L(p, `Updated crew roster for boat ${b.name} (${b.regNo}): ${crewMembers.length} members`)
         }
+        return p
+      }),
+
+    setActiveBoat: boatId =>
+      up(p => {
+        p.activeBoatId = boatId
+        return p
+      }),
+
+    assignBoatCrew: d =>
+      up(p => {
+        p.boatCrewAssignments = p.boatCrewAssignments || []
+        p.seq.asg = p.seq.asg || 20
+        const id = 'asg_' + p.seq.asg++
+        const boat = (p.boats || []).find(b => b.id === d.boatId)
+
+        const existingActive = p.boatCrewAssignments.find(
+          x => (x.fishermanName || '').trim().toLowerCase() === (d.fishermanName || '').trim().toLowerCase() &&
+               x.status === 'Active' &&
+               x.accountType === 'Permanent'
+        )
+        if (existingActive && existingActive.boatId !== d.boatId) {
+          existingActive.status = 'Transferred'
+          existingActive.endDate = d.startDate || today()
+          existingActive.notes = (existingActive.notes || '') + ` | Transferred to ${boat?.name || d.boatId}`
+        }
+
+        const newAsg = {
+          id,
+          boatId: d.boatId,
+          boatReg: boat?.regNo || boat?.code || 'FISH-001',
+          boatName: boat?.name || 'Vessel',
+          supId: d.supId || ('sup_' + uid('')),
+          fishermanName: d.fishermanName,
+          position: d.position || 'Crew',
+          accountType: d.accountType || 'Permanent',
+          phone: d.phone || '',
+          nida: d.nida || '',
+          seasonId: d.seasonId || p.activeSeasonId || 'seas_2026_q1',
+          startDate: d.startDate || today(),
+          endDate: null,
+          status: 'Active',
+          balance: +d.initialBalance || 0,
+          balanceType: d.balanceType || 'owed_by_fisherman',
+          balanceMeaning: d.balanceMeaning || 'Active season account balance',
+          rateAgreement: d.rateAgreement || 'Standard Crew Catch Share (20%)',
+          totalTrips: 0,
+          totalDeliveredKg: 0,
+          notes: d.notes || 'Assigned to vessel crew roster'
+        }
+        p.boatCrewAssignments.unshift(newAsg)
+
+        if (d.position === 'Captain' && boat) {
+          boat.captain = d.fishermanName
+        }
+
+        L(p, `Assigned ${d.fishermanName} as ${d.position} to boat ${boat?.name || d.boatId} (${newAsg.accountType})`)
+        return p
+      }),
+
+    updateCrewAssignment: (id, d) =>
+      up(p => {
+        p.boatCrewAssignments = p.boatCrewAssignments || []
+        const asg = p.boatCrewAssignments.find(x => x.id === id)
+        if (asg) {
+          Object.assign(asg, d)
+          if (asg.position === 'Captain') {
+            const boat = (p.boats || []).find(b => b.id === asg.boatId)
+            if (boat) boat.captain = asg.fishermanName
+          }
+          L(p, `Updated crew assignment for ${asg.fishermanName} on boat ${asg.boatName}`)
+        }
+        return p
+      }),
+
+    createKibaluaEngagement: d =>
+      up(p => {
+        p.kibaluaEngagements = p.kibaluaEngagements || []
+        p.seq.kib = p.seq.kib || 105
+        const no = 'KIB-' + String(p.seq.kib++).padStart(5, '0')
+        const boat = (p.boats || []).find(b => b.id === d.boatId)
+        const durationDays = +d.durationDays || 1
+        const dailyRate = +d.dailyRate || 25000
+        const grossPayable = +d.grossPayable || (durationDays * dailyRate)
+        const advancePaid = +d.advancePaid || 0
+        const remainingPayable = grossPayable - advancePaid - (+d.allocatedExpenses || 0)
+
+        const kib = {
+          id: uid('kib'),
+          no,
+          boatId: d.boatId,
+          boatReg: boat?.regNo || boat?.code || 'FISH-001',
+          boatName: boat?.name || 'Vessel',
+          fishermanName: d.fishermanName,
+          phone: d.phone || '',
+          position: 'Crew (Kibalua)',
+          engagementType: 'Kibalua',
+          durationDays,
+          startDate: d.startDate || today(),
+          endDate: d.endDate || today(),
+          dailyRate,
+          grossPayable,
+          advancePaid,
+          allocatedExpenses: +d.allocatedExpenses || 0,
+          remainingPayable,
+          tripsCount: +d.tripsCount || 1,
+          paymentStatus: advancePaid >= grossPayable ? 'Paid' : 'Pending Payment',
+          status: 'Active',
+          seasonId: d.seasonId || p.activeSeasonId || 'seas_2026_q1',
+          notes: d.notes || `${durationDays}-day temporary Kibalua engagement`
+        }
+
+        p.kibaluaEngagements.unshift(kib)
+
+        if (advancePaid > 0) {
+          p.advances = p.advances || []
+          p.seq.adv = (p.seq.adv || 100) + 1
+          p.advances.unshift({
+            id: uid('adv'),
+            no: 'ADV-' + String(p.seq.adv).padStart(5, '0'),
+            date: d.startDate || today(),
+            at: (d.startDate || today()) + 'T08:00',
+            supId: 'kib_' + kib.id,
+            fishermanName: d.fishermanName,
+            boatId: d.boatId,
+            seasonId: kib.seasonId,
+            amount: advancePaid,
+            category: 'Kibalua Daily Advance',
+            purpose: `Initial advance for ${durationDays}-day Kibalua engagement on ${boat?.name}`,
+            method: 'Cash',
+            status: 'Approved',
+            classification: 'Fisherman-recoverable',
+            recovered: 0,
+            notes: `Disbursed under voucher ${no}`
+          })
+        }
+
+        L(p, `${no}: Registered ${durationDays}-day Kibalua engagement for ${d.fishermanName} on boat ${boat?.name} (Gross: TZS ${grossPayable})`)
+        return p
+      }),
+
+    completeKibaluaEngagement: (id, d) =>
+      up(p => {
+        p.kibaluaEngagements = p.kibaluaEngagements || []
+        const kib = p.kibaluaEngagements.find(k => k.id === id)
+        if (kib) {
+          kib.status = 'Completed'
+          kib.completedDate = d.completedDate || today()
+          kib.finalPaymentPaid = +d.finalPaymentPaid || kib.remainingPayable
+          kib.paymentMethod = d.paymentMethod || 'Cash'
+          kib.paymentStatus = 'Fully Paid'
+          kib.remainingPayable = 0
+          kib.notes = (kib.notes || '') + ` | Engagement completed & settled on ${kib.completedDate}`
+          L(p, `${kib.no}: Settled Kibalua engagement for ${kib.fishermanName} with final payment of TZS ${kib.finalPaymentPaid}`)
+        }
+        return p
+      }),
+
+    processFishermanExit: d =>
+      up(p => {
+        p.boatCrewAssignments = p.boatCrewAssignments || []
+        p.fishermanExitRecords = p.fishermanExitRecords || []
+        const asg = p.boatCrewAssignments.find(a => a.id === d.assignmentId)
+        if (asg) {
+          asg.status = 'Exited'
+          asg.endDate = d.lastWorkingDate || today()
+          asg.notes = (asg.notes || '') + ` | Exited on ${asg.endDate} (${d.reason})`
+
+          const exitRecord = {
+            id: uid('exit'),
+            assignmentId: asg.id,
+            boatId: asg.boatId,
+            boatReg: asg.boatReg,
+            boatName: asg.boatName,
+            fishermanName: asg.fishermanName,
+            supId: asg.supId,
+            phone: asg.phone,
+            position: asg.position,
+            lastWorkingDate: d.lastWorkingDate || today(),
+            reason: d.reason || 'Resigned',
+            outstandingAdvances: +d.outstandingAdvances || asg.balance || 0,
+            unreturnedGear: d.unreturnedGear || 'None',
+            finalBalanceDue: +d.finalBalanceDue || asg.balance || 0,
+            approvedBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Operations Manager',
+            approvedDate: today(),
+            status: 'Approved & Retained on Ledger',
+            notes: d.notes || 'Formal exit clearance processed; accounts preserved for seasonal audit.'
+          }
+          p.fishermanExitRecords.unshift(exitRecord)
+          L(p, `Processed exit clearance for ${asg.fishermanName} from boat ${asg.boatName} (${d.reason}). Unpaid balance preserved.`)
+        }
+        return p
+      }),
+
+    allocateBoatExpense: d =>
+      up(p => {
+        p.boatExpenseAllocations = p.boatExpenseAllocations || []
+        const boat = (p.boats || []).find(b => b.id === d.boatId)
+        const totalAmount = +d.totalAmount || 0
+        const activeCrew = (p.boatCrewAssignments || []).filter(
+          a => a.boatId === d.boatId && a.status === 'Active'
+        )
+        const count = activeCrew.length || 1
+        const perPerson = Math.round(totalAmount / count)
+
+        const splitItems = activeCrew.map(c => ({
+          assignmentId: c.id,
+          supId: c.supId,
+          name: c.fishermanName,
+          role: c.position,
+          amount: d.rule === 'Company-funded' ? 0 : perPerson,
+          status: d.rule === 'Company-funded' ? 'Company Absorbed' : 'Posted to Ledger'
+        }))
+
+        const alloc = {
+          id: uid('alloc'),
+          boatId: d.boatId,
+          boatReg: boat?.regNo || boat?.code || 'FISH-001',
+          boatName: boat?.name || 'Vessel',
+          date: d.date || today(),
+          seasonId: d.seasonId || p.activeSeasonId || 'seas_2026_q1',
+          expenseType: d.expenseType || 'Food & Catering',
+          description: d.description || 'Shared boat operational expense',
+          totalAmount,
+          rule: d.rule || 'Equal allocation',
+          splitItems,
+          postedBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Accountant',
+          notes: d.notes || `Shared expense split among ${count} active crew members`
+        }
+
+        p.boatExpenseAllocations.unshift(alloc)
+
+        if (d.rule !== 'Company-funded') {
+          splitItems.forEach(item => {
+            if (item.supId && item.amount > 0) {
+              postLedgerEntry(p, {
+                supId: item.supId,
+                boatId: d.boatId,
+                seasonId: alloc.seasonId,
+                date: d.date || today(),
+                type: `Shared ${d.expenseType}`,
+                debit: item.amount,
+                credit: 0,
+                source: 'expenses',
+                refId: alloc.id,
+                ref: boat?.regNo || boat?.code || 'BOAT-EXP',
+                notes: `Allocated shared expense: ${d.description || d.expenseType} (${d.rule})`,
+                createdBy: alloc.postedBy
+              })
+              const asg = activeCrew.find(c => c.id === item.assignmentId)
+              if (asg) {
+                asg.balance = (asg.balance || 0) + item.amount
+              }
+            }
+          })
+        }
+
+        L(p, `Allocated TZS ${totalAmount} shared expense on ${boat?.name} (${d.rule}) across ${count} crew`)
         return p
       }),
 

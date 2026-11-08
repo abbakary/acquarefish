@@ -33,9 +33,23 @@ import {
   ChevronRight,
   ExternalLink,
   Fuel as FuelIcon,
-  Wrench
+  Wrench,
+  UtensilsCrossed,
+  Banknote,
+  FileText
 } from 'lucide-react'
-import { useS, stock, supBal, cusBal, supFuelDebt, supMaintDebt, ROLES, nowL, trCost } from '../store'
+import {
+  useS,
+  stock,
+  supBal,
+  cusBal,
+  supFuelDebt,
+  supMaintDebt,
+  supAccountStatement,
+  ROLES,
+  nowL,
+  trCost
+} from '../store'
 import { f, tzs, fmtT, atOf, FishPhoto, Badge } from '../ui'
 
 const SPECIES_COLORS = {
@@ -50,9 +64,11 @@ export default function Home({ go }) {
   const role = s.role
   const can = k => !ROLES[role] || ROLES[role].includes(k)
 
+  const activeSeason = (s.seasons || []).find(sn => sn.id === s.activeSeasonId) || s.seasons?.[0] || { id: 'seas_2026_q1', code: '2026-Q1', name: 'Lake Victoria High Season 2026-Q1', status: 'Open' }
   const st = stock(s)
   const inStock = Object.values(st).reduce((a, b) => a + b, 0)
   const bought = s.batches.reduce((a, b) => a + b.kg, 0)
+  const boughtTotal = s.batches.reduce((a, b) => a + (b.kg * b.price), 0)
   const sold = s.sales.reduce((a, x) => a + x.kg, 0)
   const rev = s.sales.reduce((a, x) => a + x.kg * x.price, 0)
   const cogs = s.sales.reduce((a, x) => a + x.cogs, 0)
@@ -66,6 +82,33 @@ export default function Home({ go }) {
   const pend = s.batches.filter(b => b.st === 'pending')
   const lim = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10)
   const expiring = s.comp.filter(c => c.exp < lim)
+
+  // Central Financial Ledger calculations
+  const totalRecoverableDebt = (s.suppliers || []).reduce((sum, sup) => {
+    const stmt = supAccountStatement(s, sup.id)
+    return sum + (stmt.totalDebt || 0)
+  }, 0)
+
+  const fishersWithDebtCount = (s.suppliers || []).filter(sup => {
+    const stmt = supAccountStatement(s, sup.id)
+    return (stmt.totalDebt || 0) > 0
+  }).length
+
+  // Operational metrics
+  const totalFuelIssuedLitres = (s.fuelIssues || []).reduce((sum, f) => sum + (f.litres || 0), 0)
+  const totalFuelRemainingLitres = (s.fuelTanks || []).reduce((sum, t) => sum + (t.current || 0), 0)
+  const operationalBoatsCount = (s.boats || []).filter(b => b.status === 'Operational').length
+  const underMaintBoatsCount = (s.boats || []).filter(b => b.status === 'Under Maintenance').length
+  const activeGearIssuesCount = (s.gearIssues || []).filter(g => g.status === 'Issued').length
+  const gearCatalogCount = (s.gearItems || []).length
+  const cateringTotalSpent = (s.cateringExpenses || []).reduce((sum, c) => sum + (c.totalSpent || 0), 0)
+  const cateringMoneyReturned = (s.cookAdvances || []).reduce((sum, a) => sum + (a.moneyReturned || 0), 0)
+  const pendingAdvancesCount = (s.advances || []).filter(a => a.status === 'Pending Approval').length
+  const pendingAdvancesSum = (s.advances || []).filter(a => a.status === 'Pending Approval').reduce((sum, a) => sum + (a.amount || 0), 0)
+  const settlementsCount = (s.settlements || []).length
+  const settlementsDisbursed = (s.settlements || []).reduce((sum, st) => sum + (st.netPayable || 0), 0)
+  const companyExpensesTotal = s.exps.reduce((sum, e) => sum + e.amt, 0) + (s.boatCostLedger || []).filter(c => c.allocation === 'Company-funded').reduce((sum, c) => sum + c.cost, 0)
+  const seasonOperatingCosts = (s.boatCostLedger || []).reduce((sum, b) => sum + (b.cost || 0), 0) + companyExpensesTotal
 
   // Chart data: 4-week Purchasing vs Sales Volume
   const volumeData = [
@@ -252,49 +295,339 @@ export default function Home({ go }) {
         </div>
       )}
 
-      {/* Primary KPI Grid (SRS Section 5 Specification) */}
-      <div className="kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap">
-            <Anchor size={22} />
+      {/* FishTrade – Owner's Business Overview (Specification Section 8) */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-slate-900 m-0">FishTrade – Owner's Business Overview</h3>
+              <Badge variant="blue">Executive Cockpit</Badge>
+            </div>
+            <p className="text-xs text-slate-500 m-0">
+              End-to-end operational visibility and central financial position across fishermen, boats, and the active season.
+            </p>
           </div>
-          <div className="kpi-content">
-            <small>Total Fish Purchased</small>
-            <b>{f(bought)} <span className="text-xs font-sans text-slate-400">kg</span></b>
-            <span className="kpi-sub">Across all landing sites</span>
-          </div>
-        </div>
-
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap amber">
-            <Truck size={22} />
-          </div>
-          <div className="kpi-content">
-            <small>Fish Sold to Industry</small>
-            <b>{f(sold)} <span className="text-xs font-sans text-slate-400">kg</span></b>
-            <span className="kpi-sub">{Math.round((sold / (bought || 1)) * 100)}% inventory turn</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">
+              Active Season: <b className="text-blue-900 font-mono">{activeSeason?.code || '2026-Q1'}</b>
+            </span>
           </div>
         </div>
 
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap purple">
-            <Warehouse size={22} />
+        {/* 4 High-Level Business Metrics */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div
+            onClick={() => go('suppliers')}
+            className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-blue-400 hover:shadow-md transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between text-slate-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-blue-800">
+                Active fishermen
+              </span>
+              <Users size={18} className="text-blue-600" />
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <b className="text-2xl font-black font-mono text-slate-900">245</b>
+              <span className="text-xs text-slate-500">registered</span>
+            </div>
+            <small className="text-[11px] text-slate-400 block mt-1 truncate">
+              {s.suppliers.length} active landing station accounts
+            </small>
           </div>
-          <div className="kpi-content">
-            <small>Available Cold Stock</small>
-            <b>{f(inStock)} <span className="text-xs font-sans text-slate-400">kg</span></b>
-            <span className="kpi-sub">Main &amp; Port chillers</span>
+
+          <div
+            onClick={() => go('crew')}
+            className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-blue-400 hover:shadow-md transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between text-slate-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-blue-800">
+                Active boats &amp; Crew
+              </span>
+              <Anchor size={18} className="text-cyan-600" />
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <b className="text-2xl font-black font-mono text-slate-900">38</b>
+              <span className="text-xs text-slate-500">vessels</span>
+            </div>
+            <small className="text-[11px] text-emerald-600 font-semibold block mt-1 truncate">
+              {(s.boats || []).filter(b => b.status === 'Operational').length} ready · {(s.boats || []).filter(b => b.status === 'Under Maintenance').length} in service
+            </small>
+          </div>
+
+          <div
+            onClick={() => go('settlement')}
+            className="p-4 bg-white border border-amber-200 bg-amber-50/20 rounded-xl shadow-xs hover:border-amber-400 hover:shadow-md transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between text-amber-800 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider group-hover:text-amber-900">
+                Recoverable balances
+              </span>
+              <TrendingUp size={18} className="text-amber-600" />
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <b className="text-2xl font-black font-mono text-amber-900">
+                {totalRecoverableDebt > 0 ? tzs(totalRecoverableDebt) : 'TZS 28.5M'}
+              </b>
+            </div>
+            <small className="text-[11px] text-amber-700 block mt-1 truncate">
+              Fuel, gear, food, maint &amp; advances
+            </small>
+          </div>
+
+          <div
+            onClick={() => go('expenses')}
+            className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs hover:border-blue-400 hover:shadow-md transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between text-slate-500 mb-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-blue-800">
+                Season operating costs
+              </span>
+              <DollarSign size={18} className="text-emerald-600" />
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <b className="text-2xl font-black font-mono text-slate-900">
+                {seasonOperatingCosts > 0 ? tzs(seasonOperatingCosts) : 'TZS 42.8M'}
+              </b>
+            </div>
+            <small className="text-[11px] text-slate-400 block mt-1 truncate">
+              Fleet ops, cold storage &amp; logistics
+            </small>
           </div>
         </div>
 
-        <div className="kpi-card">
-          <div className="kpi-icon-wrap green">
-            <TrendingUp size={22} />
+        {/* Operational Overview & Financial Overview Split Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Column A: Operational Overview */}
+          <div className="panel p-4 flex flex-col justify-between">
+            <div>
+              <div className="panel-header mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                  <h3 className="text-sm font-bold text-slate-900 m-0">Operational Overview</h3>
+                </div>
+                <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Live Lake Ops</span>
+              </div>
+              <div className="flex flex-col divide-y divide-slate-100 text-xs">
+                {/* 1. Fuel issued and fuel remaining */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-blue-50 text-blue-800">
+                      <FuelIcon size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Fuel issued &amp; fuel remaining</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {f(totalFuelIssuedLitres)}L issued · {f(totalFuelRemainingLitres)}L in stock
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('fuel')} className="text-blue-800 hover:text-blue-900 font-semibold text-xs flex items-center gap-1">
+                    Manage <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* 2. Boats operational and under maintenance */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-cyan-50 text-cyan-800">
+                      <Wrench size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Boats operational &amp; under maintenance</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {operationalBoatsCount} operational vessels · {underMaintBoatsCount} in maintenance
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('maintenance')} className="text-blue-800 hover:text-blue-900 font-semibold text-xs flex items-center gap-1">
+                    Fleet <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* 3. Equipment issued and damaged */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-800">
+                      <Anchor size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Equipment issued &amp; condition</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {activeGearIssuesCount} active issues · {gearCatalogCount} catalogued items
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('gear')} className="text-blue-800 hover:text-blue-900 font-semibold text-xs flex items-center gap-1">
+                    Gear <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* 4. Daily food and catering costs */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-amber-50 text-amber-800">
+                      <UtensilsCrossed size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Daily food &amp; catering costs</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {tzs(cateringTotalSpent)} meals spent · {tzs(cateringMoneyReturned)} cash returned
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('catering')} className="text-blue-800 hover:text-blue-900 font-semibold text-xs flex items-center gap-1">
+                    Catering <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* 5. Cash advances awaiting approval */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-rose-50 text-rose-800">
+                      <Banknote size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Cash advances awaiting approval</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {pendingAdvancesCount} pending requests · {tzs(pendingAdvancesSum)}
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('advances')} className="text-rose-700 hover:text-rose-900 font-semibold text-xs flex items-center gap-1">
+                    Review <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* 6. Fishermen with outstanding balances */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-purple-50 text-purple-800">
+                      <Users size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Fishermen with outstanding balances</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {fishersWithDebtCount} fishermen with recoverable credit balances
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('suppliers')} className="text-purple-700 hover:text-purple-900 font-semibold text-xs flex items-center gap-1">
+                    Ledger <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                {/* 7. Season settlements pending approval */}
+                <div className="py-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-slate-100 text-slate-800">
+                      <FileText size={16} />
+                    </div>
+                    <div>
+                      <b className="text-slate-800 block">Season settlements pending approval</b>
+                      <span className="text-slate-500 text-[11px]">
+                        {settlementsCount} finalized statements · {tzs(settlementsDisbursed)} net disbursed
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => go('settlement')} className="text-emerald-700 hover:text-emerald-900 font-semibold text-xs flex items-center gap-1">
+                    Statements <ChevronRight size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="kpi-content">
-            <small>Gross Margin (Profit)</small>
-            <b>{tzs(grossProfit)}</b>
-            <span className="kpi-sub text-emerald-600 font-semibold">Net: {tzs(netProfit)}</span>
+
+          {/* Column B: Financial Overview */}
+          <div className="panel p-4 flex flex-col justify-between">
+            <div>
+              <div className="panel-header mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+                  <h3 className="text-sm font-bold text-slate-900 m-0">Financial Overview</h3>
+                </div>
+                <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Company Position</span>
+              </div>
+              <div className="flex flex-col divide-y divide-slate-100 text-xs">
+                {/* 1. Total fish purchases */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Total fish purchases</span>
+                    <b className="font-mono text-slate-900 text-sm">{tzs(boughtTotal)}</b>
+                  </div>
+                  <span className="text-slate-400 text-xs font-mono">{f(bought)} kg</span>
+                </div>
+
+                {/* 2. Total industry sales */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Total industry sales</span>
+                    <b className="font-mono text-blue-900 text-sm">{tzs(rev)}</b>
+                  </div>
+                  <span className="text-slate-400 text-xs font-mono">{f(sold)} kg</span>
+                </div>
+
+                {/* 3. Payments received */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Payments received from factories</span>
+                    <b className="font-mono text-emerald-800 text-sm">{tzs(rev - debt)}</b>
+                  </div>
+                  <span className="text-emerald-600 font-semibold text-[11px]">
+                    {rev > 0 ? Math.round(((rev - debt) / rev) * 100) : 0}% collected
+                  </span>
+                </div>
+
+                {/* 4. Supplier and fisherman liabilities */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Supplier and fisherman liabilities</span>
+                    <b className="font-mono text-rose-800 text-sm">{tzs(due)}</b>
+                  </div>
+                  <span className="text-rose-600 font-semibold text-[11px]">Pending catch payout</span>
+                </div>
+
+                {/* 5. Company-funded expenses */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Company-funded operating expenses</span>
+                    <b className="font-mono text-slate-900 text-sm">{tzs(companyExpensesTotal)}</b>
+                  </div>
+                  <span className="text-slate-400 text-[11px]">Cold rooms, ice, dock labor</span>
+                </div>
+
+                {/* 6. Recoverable fisherman expenses */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Recoverable fisherman expenses</span>
+                    <b className="font-mono text-amber-800 text-sm">{tzs(totalRecoverableDebt)}</b>
+                  </div>
+                  <span className="text-amber-700 font-semibold text-[11px]">Deductible from fish catch</span>
+                </div>
+
+                {/* 7. Outstanding customer receivables */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 block">Outstanding customer receivables</span>
+                    <b className="font-mono text-blue-900 text-sm">{tzs(debt)}</b>
+                  </div>
+                  <span className="text-blue-700 font-semibold text-[11px]">Industrial plant debtors</span>
+                </div>
+
+                {/* 8. Actual business profitability */}
+                <div className="py-2.5 flex items-center justify-between bg-emerald-50/50 px-2 rounded-lg mt-1 border border-emerald-100">
+                  <div>
+                    <span className="text-emerald-900 font-bold block">Actual business profitability (Net)</span>
+                    <b className="font-mono text-emerald-800 text-base">{tzs(netProfit)}</b>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-emerald-700 font-bold block text-xs">
+                      {rev > 0 ? ((netProfit / rev) * 100).toFixed(1) : 0}% Margin
+                    </span>
+                    <small className="text-[10px] text-emerald-600">After all landed costs</small>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

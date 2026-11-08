@@ -39,7 +39,7 @@ export default function Gear() {
   const suppliers = s.suppliers || []
   const boats = s.boats || []
   const seasons = s.seasons || []
-  const activeSeason = seasons.find(sn => sn.id === s.activeSeasonId) || seasons[0]
+  const activeSeason = seasons.find(sn => sn.id === s.activeSeasonId) || seasons[0] || { id: 'seas_2026_q1', code: '2026-Q1', name: 'Lake Victoria High Season 2026-Q1', status: 'Open' }
 
   // KPI Calculations
   const totalCatalogItems = gearItems.length
@@ -62,12 +62,37 @@ export default function Gear() {
     itemsList: []
   })
 
-  // Return Form State
+  // Return Form State & Lifecycle Management
   const [returnForm, setReturnForm] = useState({
+    issueId: '',
+    returnedDate: new Date().toISOString().slice(0, 10),
+    status: 'Returned & Reconciled',
     returnedCondition: 'Good',
     restock: true,
+    liabilityAction: 'Retain as Fisherman Liability',
     returnNotes: 'Returned after fishing expedition; inspected and clean'
   })
+
+  // Open Return / Damage / Loss Modal
+  const openProcessReturnModal = (issue = null) => {
+    const targetIssue = issue || gearIssues.find(g => g.status === 'Issued') || gearIssues[0]
+    setSelectedIssue(targetIssue || null)
+    if (targetIssue) {
+      const isDamaged = targetIssue.returnedCondition === 'Damaged' || targetIssue.returnedCondition === 'Lost'
+      setReturnForm({
+        issueId: targetIssue.id,
+        returnedDate: targetIssue.returnedDate && targetIssue.returnedDate !== 'In Field' 
+          ? targetIssue.returnedDate 
+          : new Date().toISOString().slice(0, 10),
+        status: targetIssue.status === 'Issued' ? 'Returned & Reconciled' : targetIssue.status,
+        returnedCondition: targetIssue.returnedCondition || 'Good',
+        restock: !isDamaged,
+        liabilityAction: targetIssue.liabilityHandling || (targetIssue.recoverable > 0 ? 'Retain as Fisherman Liability' : 'Credit / Clear Fisherman Debt'),
+        returnNotes: targetIssue.returnNotes || (targetIssue.status === 'Issued' ? 'Equipment returned from Lake Victoria fishing expedition; inspected.' : targetIssue.notes || '')
+      })
+    }
+    setReturnModalOpen(true)
+  }
 
   // Item Form State
   const [itemForm, setItemForm] = useState({
@@ -136,10 +161,17 @@ export default function Gear() {
 
   const submitReturnGear = () => {
     if (!selectedIssue) return
+    const isCredit = returnForm.liabilityAction === 'Credit / Clear Fisherman Debt'
+    const isWriteOff = returnForm.liabilityAction === 'Company Emergency Write-off'
+
     a.returnGear(selectedIssue.id, {
-      status: 'Returned & Reconciled',
+      status: returnForm.status,
+      returnedDate: returnForm.returnedDate,
       returnedCondition: returnForm.returnedCondition,
       restock: returnForm.restock,
+      creditFisherman: isCredit,
+      companyWriteOff: isWriteOff,
+      liabilityHandling: returnForm.liabilityAction,
       returnNotes: returnForm.returnNotes
     })
     setReturnModalOpen(false)
@@ -343,27 +375,24 @@ export default function Gear() {
                     const boat = boats.find(b => b.id === issue.boatId)
                     return (
                       <tr key={issue.id} className="hover:bg-slate-50/80 transition">
-                        <td className="font-mono font-bold text-blue-900">{issue.no}</td>
-                        <td>
-                          <span className="text-xs text-slate-700 block">{issue.date}</span>
-                          <span className="text-[11px] text-slate-400 font-mono">{fmtT(issue.at || issue.date)}</span>
-                        </td>
-                        <td>
+                        <td className="font-mono font-bold text-blue-900 whitespace-nowrap">{issue.no}</td>
+                        <td className="font-mono text-xs text-slate-800 whitespace-nowrap font-medium">{issue.date}</td>
+                        <td className="whitespace-nowrap">
                           <b className="text-slate-900 block">{sup?.name || issue.supId}</b>
                           <span className="text-[11px] text-slate-500 font-mono">{sup?.no || '-'}</span>
                         </td>
-                        <td>
+                        <td className="whitespace-nowrap">
                           <span className="font-bold text-slate-800 block">{boat?.name || 'Unassigned'}</span>
                           <span className="text-[11px] font-mono text-slate-400">{boat?.regNo || '-'}</span>
                         </td>
-                        <td className="max-w-[220px]">
+                        <td className="max-w-[220px] whitespace-nowrap">
                           <span className="text-xs text-slate-800 block truncate">
                             {issue.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
                           </span>
                           <span className="text-[11px] text-slate-400">Condition: {issue.conditionOnIssue}</span>
                         </td>
-                        <td className="font-mono font-bold text-slate-900">{tzs(issue.totalCost)}</td>
-                        <td>
+                        <td className="font-mono font-bold text-slate-900 whitespace-nowrap">{tzs(issue.totalCost)}</td>
+                        <td className="whitespace-nowrap">
                           <span
                             className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold border ${
                               issue.arrangement.includes('Credit') || issue.arrangement.includes('recoverable')
@@ -374,28 +403,32 @@ export default function Gear() {
                             {issue.arrangement}
                           </span>
                         </td>
-                        <td className="font-mono font-bold">
+                        <td className="font-mono font-bold whitespace-nowrap">
                           {issue.recoverable > 0 ? (
                             <span className="text-red-600">+{tzs(issue.recoverable)}</span>
                           ) : (
                             <span className="text-slate-400">Company Paid</span>
                           )}
                         </td>
-                        <td>
+                        <td className="whitespace-nowrap">
                           <Badge variant={issue.status === 'Issued' ? 'amber' : 'green'}>
                             {issue.status}
                           </Badge>
                         </td>
-                        <td className="text-right">
-                          {issue.status === 'Issued' && (
+                        <td className="text-right whitespace-nowrap">
+                          {issue.status === 'Issued' ? (
                             <button
-                              onClick={() => {
-                                setSelectedIssue(issue)
-                                setReturnModalOpen(true)
-                              }}
-                              className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-1 transition"
+                              onClick={() => openProcessReturnModal(issue)}
+                              className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 transition shadow-xs whitespace-nowrap"
                             >
-                              <RotateCcw size={12} /> Log Return
+                              <RotateCcw size={12} /> Inspect / Return
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openProcessReturnModal(issue)}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold inline-flex items-center gap-1.5 transition whitespace-nowrap border border-slate-200"
+                            >
+                              <FileText size={12} /> Policy Details
                             </button>
                           )}
                         </td>
@@ -499,9 +532,22 @@ export default function Gear() {
       {/* TAB 3: RETURN & LOSS LOGS */}
       {tab === 'returns' && (
         <div className="flex flex-col gap-3">
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
-            <b className="text-slate-900 block mb-1">Equipment Lifecycle &amp; Damaged Asset Policy</b>
-            Reusable nets, lanterns, and GPS receivers returned from fishing expeditions are inspected for reef cuts or battery faults. Lost or damaged equipment issued on credit is retained as a fisherman liability on the central ledger.
+          <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50/40 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="space-y-1">
+              <b className="text-slate-900 block font-bold text-sm flex items-center gap-1.5">
+                <ShieldCheck size={16} className="text-blue-600" />
+                Equipment Lifecycle &amp; Damaged Asset Policy
+              </b>
+              <p className="text-slate-600 m-0 max-w-2xl leading-relaxed">
+                Reusable nets, lanterns, and GPS receivers returned from fishing expeditions are inspected for reef cuts or battery faults. Lost or damaged equipment issued on credit is retained as a fisherman liability on the central ledger.
+              </p>
+            </div>
+            <button
+              onClick={() => openProcessReturnModal()}
+              className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs inline-flex items-center gap-1.5 shrink-0 self-start sm:self-center transition shadow-xs whitespace-nowrap"
+            >
+              <RotateCcw size={14} /> Process Return / Damage / Loss
+            </button>
           </div>
 
           <div className="data-table-wrap">
@@ -516,31 +562,80 @@ export default function Gear() {
                   <th>Returned Condition</th>
                   <th>Status</th>
                   <th>Notes</th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {gearIssues.map(issue => (
-                  <tr key={issue.id}>
-                    <td className="font-mono font-bold text-blue-900">{issue.no}</td>
-                    <td>{issue.date}</td>
-                    <td>{issue.returnedDate || 'In Field'}</td>
-                    <td>{suppliers.find(s => s.id === issue.supId)?.name || issue.supId}</td>
-                    <td>{boats.find(b => b.id === issue.boatId)?.name || 'Vessel'}</td>
-                    <td>
-                      <Badge variant={issue.returnedCondition === 'Damaged' ? 'red' : 'green'}>
-                        {issue.returnedCondition || issue.conditionOnIssue}
-                      </Badge>
-                    </td>
-                    <td>
-                      <Badge variant={issue.status === 'Issued' ? 'amber' : 'green'}>
-                        {issue.status}
-                      </Badge>
-                    </td>
-                    <td className="text-xs text-slate-500 max-w-[200px] truncate">
-                      {issue.returnNotes || issue.notes || '-'}
-                    </td>
-                  </tr>
-                ))}
+                {gearIssues.map(issue => {
+                  const sup = suppliers.find(s => s.id === issue.supId)
+                  const boat = boats.find(b => b.id === issue.boatId)
+                  const isInField = !issue.returnedDate || issue.status === 'Issued'
+                  return (
+                    <tr key={issue.id} className="hover:bg-slate-50/80 transition">
+                      <td className="font-mono font-bold text-blue-900 whitespace-nowrap">{issue.no}</td>
+                      <td className="font-mono text-xs text-slate-700 whitespace-nowrap">{issue.date}</td>
+                      <td className="font-mono text-xs whitespace-nowrap">
+                        {isInField ? (
+                          <span className="inline-flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            In Field
+                          </span>
+                        ) : (
+                          <span className="text-slate-800 font-medium">{issue.returnedDate}</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <b className="text-slate-900 block">{sup?.name || issue.supId}</b>
+                        <span className="text-[11px] text-slate-500 font-mono">{sup?.no || '-'}</span>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <span className="font-bold text-slate-800 block">{boat?.name || 'Vessel'}</span>
+                        <span className="text-[11px] font-mono text-slate-400">{boat?.regNo || '-'}</span>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <Badge
+                          variant={
+                            issue.returnedCondition?.toLowerCase().includes('damage') || issue.returnedCondition?.toLowerCase().includes('lost')
+                              ? 'red'
+                              : issue.returnedCondition === 'Fair'
+                                ? 'amber'
+                                : 'green'
+                          }
+                        >
+                          {issue.returnedCondition || issue.conditionOnIssue || 'New'}
+                        </Badge>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <Badge
+                          variant={
+                            issue.status === 'Issued'
+                              ? 'amber'
+                              : issue.status?.toLowerCase().includes('loss') || issue.status?.toLowerCase().includes('damaged')
+                                ? 'red'
+                                : 'green'
+                          }
+                        >
+                          {issue.status}
+                        </Badge>
+                      </td>
+                      <td className="text-xs text-slate-600 max-w-[220px] truncate whitespace-nowrap">
+                        {issue.returnNotes || issue.notes || '-'}
+                      </td>
+                      <td className="text-right whitespace-nowrap">
+                        <button
+                          onClick={() => openProcessReturnModal(issue)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition whitespace-nowrap ${
+                            issue.status === 'Issued'
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                          }`}
+                        >
+                          <RotateCcw size={12} />
+                          {issue.status === 'Issued' ? 'Inspect & Handle' : 'Re-inspect / Policy'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -780,58 +875,234 @@ export default function Gear() {
         </Modal>
       )}
 
-      {/* MODAL 3: LOG GEAR RETURN */}
-      {returnModalOpen && selectedIssue && (
-        <Modal title={`Log Equipment Return: ${selectedIssue.no}`} close={() => setReturnModalOpen(false)}>
+      {/* MODAL 3: COMPREHENSIVE FORM ACTION FOR RETURN, DAMAGE & LOSS */}
+      {returnModalOpen && (
+        <Modal
+          title={selectedIssue ? `Inspect & Handle Equipment: ${selectedIssue.no}` : 'Process Equipment Return / Damage / Loss'}
+          close={() => {
+            setReturnModalOpen(false)
+            setSelectedIssue(null)
+          }}
+        >
           <div className="flex flex-col gap-4 text-xs">
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-              <b className="text-slate-900 block">{selectedIssue.items.map(i => `${i.name} (x${i.qty})`).join(', ')}</b>
-              <span className="text-slate-500 block">Issued on {selectedIssue.date} to {selectedIssue.supId}</span>
-            </div>
-
-            <Field label="Condition on Return">
+            {/* Voucher Selector if multiple or opened from top */}
+            <Field label="Select Equipment Deployment Voucher">
               <select
-                value={returnForm.returnedCondition}
-                onChange={e => setReturnForm({ ...returnForm, returnedCondition: e.target.value })}
+                value={selectedIssue?.id || ''}
+                onChange={e => {
+                  const target = gearIssues.find(g => g.id === e.target.value)
+                  if (target) {
+                    setSelectedIssue(target)
+                    const isDamaged = target.returnedCondition === 'Damaged' || target.returnedCondition === 'Lost'
+                    setReturnForm({
+                      issueId: target.id,
+                      returnedDate: target.returnedDate && target.returnedDate !== 'In Field'
+                        ? target.returnedDate
+                        : new Date().toISOString().slice(0, 10),
+                      status: target.status === 'Issued' ? 'Returned & Reconciled' : target.status,
+                      returnedCondition: target.returnedCondition || 'Good',
+                      restock: !isDamaged,
+                      liabilityAction: target.liabilityHandling || (target.recoverable > 0 ? 'Retain as Fisherman Liability' : 'Credit / Clear Fisherman Debt'),
+                      returnNotes: target.returnNotes || (target.status === 'Issued' ? 'Equipment returned from Lake Victoria fishing expedition; inspected.' : target.notes || '')
+                    })
+                  }
+                }}
                 className="input-field font-semibold"
               >
-                <option>Good</option>
-                <option>Fair (Minor Wear)</option>
-                <option>Damaged / Needs Repair</option>
-                <option>Lost / Irrecoverable</option>
+                {gearIssues.map(issue => {
+                  const sup = suppliers.find(s => s.id === issue.supId)
+                  const boat = boats.find(b => b.id === issue.boatId)
+                  return (
+                    <option key={issue.id} value={issue.id}>
+                      {issue.no} · {sup?.name || issue.supId} · {boat?.name || 'Vessel'} · {issue.status} (Debt: TZS {f(issue.recoverable)})
+                    </option>
+                  )
+                })}
               </select>
             </Field>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="restock_cb"
-                checked={returnForm.restock}
-                onChange={e => setReturnForm({ ...returnForm, restock: e.target.checked })}
-                className="rounded text-blue-600"
-              />
-              <label htmlFor="restock_cb" className="text-slate-700 font-semibold cursor-pointer">
-                Restock returned undamaged equipment into store inventory
-              </label>
-            </div>
+            {selectedIssue && (
+              <>
+                {/* Deployment Context Card */}
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-bold text-slate-900 text-sm block">
+                        {suppliers.find(s => s.id === selectedIssue.supId)?.name || selectedIssue.supId}
+                      </span>
+                      <span className="text-slate-500 font-mono text-[11px]">
+                        Vessel: {boats.find(b => b.id === selectedIssue.boatId)?.name || 'Vessel'} ({boats.find(b => b.id === selectedIssue.boatId)?.regNo || '-'})
+                      </span>
+                    </div>
+                    <Badge variant={selectedIssue.status === 'Issued' ? 'amber' : 'green'}>
+                      {selectedIssue.status}
+                    </Badge>
+                  </div>
 
-            <Field label="Inspection Notes">
-              <textarea
-                rows={2}
-                value={returnForm.returnNotes}
-                onChange={e => setReturnForm({ ...returnForm, returnNotes: e.target.value })}
-                className="input-field"
-              />
-            </Field>
+                  <div className="pt-1.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-slate-700 font-semibold">
+                      Items: {selectedIssue.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
+                    </span>
+                    <div className="font-mono text-xs">
+                      <span className="text-slate-500">Total Value: <b>{tzs(selectedIssue.totalCost)}</b></span>
+                      {selectedIssue.recoverable > 0 ? (
+                        <span className="ml-2 font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-200">
+                          Recoverable Debt: +{tzs(selectedIssue.recoverable)}
+                        </span>
+                      ) : (
+                        <span className="ml-2 text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                          Company Funded
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setReturnModalOpen(false)} className="btn-secondary">
-                Cancel
-              </button>
-              <button type="button" onClick={submitReturnGear} className="btn-primary">
-                Sign-off Return
-              </button>
-            </div>
+                {/* Return Date & Condition */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Return / Inspection Date">
+                    <input
+                      type="date"
+                      value={returnForm.returnedDate}
+                      onChange={e => setReturnForm({ ...returnForm, returnedDate: e.target.value })}
+                      className="input-field font-mono font-medium"
+                    />
+                  </Field>
+
+                  <Field label="Inspected Physical Condition">
+                    <select
+                      value={returnForm.returnedCondition}
+                      onChange={e => {
+                        const cond = e.target.value
+                        let newStatus = 'Returned & Reconciled'
+                        let restockVal = true
+                        let liabilityVal = selectedIssue.recoverable > 0 ? 'Retain as Fisherman Liability' : 'Credit / Clear Fisherman Debt'
+
+                        if (cond.includes('Damaged')) {
+                          newStatus = 'Damaged Asset'
+                          restockVal = false
+                          liabilityVal = 'Retain as Fisherman Liability'
+                        } else if (cond.includes('Lost')) {
+                          newStatus = 'Lost Asset'
+                          restockVal = false
+                          liabilityVal = 'Retain as Fisherman Liability'
+                        } else if (cond === 'Good') {
+                          liabilityVal = 'Credit / Clear Fisherman Debt'
+                        }
+
+                        setReturnForm({
+                          ...returnForm,
+                          returnedCondition: cond,
+                          status: newStatus,
+                          restock: restockVal,
+                          liabilityAction: liabilityVal
+                        })
+                      }}
+                      className="input-field font-semibold"
+                    >
+                      <option value="Good">Good (Clean &amp; Reusable - Ready for Next Expedition)</option>
+                      <option value="Fair">Fair (Minor Wear &amp; Tear - Acceptable)</option>
+                      <option value="Damaged / Reef Cut">Damaged (Reef Cut / Engine Tear / Broken Lantern)</option>
+                      <option value="Lost at Sea">Lost at Sea (Capsized / Sunk / Storm Loss)</option>
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Operational Status & Store Restock */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Operational Status">
+                    <select
+                      value={returnForm.status}
+                      onChange={e => setReturnForm({ ...returnForm, status: e.target.value })}
+                      className="input-field font-semibold"
+                    >
+                      <option value="Returned &amp; Reconciled">Returned &amp; Reconciled</option>
+                      <option value="Damaged Asset">Damaged Asset (Under Review)</option>
+                      <option value="Lost Asset">Lost Asset (Irrecoverable)</option>
+                    </select>
+                  </Field>
+
+                  <div className="flex flex-col justify-center pt-4">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={returnForm.restock}
+                        disabled={returnForm.status === 'Lost Asset'}
+                        onChange={e => setReturnForm({ ...returnForm, restock: e.target.checked })}
+                        className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                      />
+                      <span className="text-slate-800 font-semibold">
+                        Restock undamaged items into equipment store
+                      </span>
+                    </label>
+                    <span className="text-[11px] text-slate-400 pl-6">
+                      Automatically increments available SKU warehouse quantity
+                    </span>
+                  </div>
+                </div>
+
+                {/* Central Fisherman Ledger Liability Policy */}
+                <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+                  <div className="flex items-center gap-1.5 text-blue-900 font-bold">
+                    <ShieldCheck size={15} className="text-blue-600" />
+                    <span>Central Fisherman Financial Ledger Liability Policy</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 m-0">
+                    Lost or damaged equipment issued on credit is retained as a fisherman liability on the central ledger to be settled during catch deductions.
+                  </p>
+
+                  <Field label="Action on Recoverable Balance">
+                    <select
+                      value={returnForm.liabilityAction}
+                      onChange={e => setReturnForm({ ...returnForm, liabilityAction: e.target.value })}
+                      className="input-field font-bold bg-white text-slate-900"
+                    >
+                      <option value="Retain as Fisherman Liability">
+                        Retain as Fisherman Liability (Deduct from catch at Season Settlement)
+                      </option>
+                      <option value="Credit / Clear Fisherman Debt">
+                        Credit / Clear Fisherman Debt (Equipment returned in good condition)
+                      </option>
+                      <option value="Company Emergency Write-off">
+                        Company Emergency Write-off (Weather/force majeure absorbed by company)
+                      </option>
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Inspection Notes */}
+                <Field label="Inspector &amp; Surveyor Notes">
+                  <textarea
+                    rows={2}
+                    value={returnForm.returnNotes}
+                    onChange={e => setReturnForm({ ...returnForm, returnNotes: e.target.value })}
+                    placeholder="Describe net mesh tears, lantern battery status, or store location..."
+                    className="input-field"
+                  />
+                </Field>
+
+                {/* Form Action Buttons */}
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReturnModalOpen(false)
+                      setSelectedIssue(null)
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitReturnGear}
+                    className="btn-primary bg-blue-600 hover:bg-blue-700 font-bold inline-flex items-center gap-1.5"
+                  >
+                    <Check size={14} /> Confirm Equipment Handling &amp; Update Ledger
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </Modal>
       )}

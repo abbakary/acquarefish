@@ -105,7 +105,7 @@ export default function Reports() {
     const totalInvoiced = sales.reduce((a, x) => a + x.kg * x.price, 0)
     const totalPaid = sales.reduce((a, x) => a + x.paid, 0)
     footers = ['Total', '', '', '', f(totalSold), '', f(totalInvoiced), f(totalPaid), f(totalInvoiced - totalPaid)]
-  } else {
+  } else if (tab === 'Transport') {
     // Transport
     const trips = (s.trips || []).filter(x => inR(atOf(x))).sort((p, q) => atOf(q).localeCompare(atOf(p)))
     headers = ['Date & Time', 'Trip Type', 'Mode', 'From &rarr; To', 'Reference', 'Vehicle Reg', 'Cost (TZS)']
@@ -120,6 +120,52 @@ export default function Reports() {
     ])
     const totalCost = trips.reduce((a, t) => a + t.cost, 0)
     footers = ['Total', '', '', '', '', `${trips.length} trips`, f(totalCost)]
+  } else if (tab === 'Fisherman Ledger') {
+    const entries = (s.fishermanLedger || [])
+      .filter(e => (!sup || e.supId === sup) && (!fr || (e.date || '') >= fr.slice(0, 10)) && (!to || (e.date || '') <= to.slice(0, 10)))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''))
+
+    headers = ['Date', 'Fisherman / BMU', 'Vessel', 'Season', 'Transaction Type', 'Debit (Owed)', 'Credit (Paid)', 'Source Module', 'Reference #', 'Created By']
+    rows = entries.map(e => {
+      const supName = nm(e.supId)
+      const boat = (s.boats || []).find(b => b.id === e.boatId)?.name || e.boatId || '-'
+      return [
+        e.date || '-',
+        supName,
+        boat,
+        e.seasonId || s.activeSeasonId || '2026-Q1',
+        e.type,
+        e.debit ? f(e.debit) : '-',
+        e.credit ? f(e.credit) : '-',
+        e.source?.toUpperCase() || 'LEDGER',
+        e.ref || e.refId || '-',
+        e.createdBy || 'Staff'
+      ]
+    })
+    const totalDebits = entries.reduce((a, e) => a + (e.debit || 0), 0)
+    const totalCredits = entries.reduce((a, e) => a + (e.credit || 0), 0)
+    footers = ['Total', `${entries.length} entries`, '', '', '', f(totalDebits), f(totalCredits), '', '', 'Net: ' + f(totalDebits - totalCredits)]
+  } else if (tab === 'Boat Costs') {
+    const costs = (s.boatCostLedger || [])
+      .filter(c => (!fr || (c.date || '') >= fr.slice(0, 10)) && (!to || (c.date || '') <= to.slice(0, 10)))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+    headers = ['Date', 'Boat / Vessel', 'Season', 'Expense Category', 'Cost (TZS)', 'Financial Allocation', 'Reference #', 'Notes']
+    rows = costs.map(c => {
+      const boat = (s.boats || []).find(b => b.id === c.boatId)?.name || c.boatId || '-'
+      return [
+        c.date || '-',
+        boat,
+        c.seasonId || s.activeSeasonId || '2026-Q1',
+        c.cat,
+        f(c.cost),
+        c.allocation,
+        c.ref || '-',
+        c.notes || ''
+      ]
+    })
+    const totalBoatCost = costs.reduce((a, c) => a + (c.cost || 0), 0)
+    footers = ['Total', `${costs.length} items`, '', '', f(totalBoatCost), '', '', '']
   }
 
   const exportCSV = () => {
@@ -129,7 +175,7 @@ export default function Reports() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = `fishtrade-${tab.toLowerCase()}-report.csv`
+    link.download = `fishtrade-${tab.toLowerCase().replace(/\s+/g, '-')}-report.csv`
     link.click()
   }
 
@@ -138,9 +184,9 @@ export default function Reports() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 m-0">Business Intelligence Reports &amp; CSV Exports</h2>
+          <h2 className="text-xl font-bold text-slate-900 m-0">Business Intelligence Reports &amp; Ledger Exports</h2>
           <p className="text-xs text-slate-500 m-0 mt-0.5">
-            Filter historical purchases, inventory balances, sales invoices, and freight costs.
+            Central ledger reconciliations, purchases, inventory, sales invoices, and boat cost allocations.
           </p>
         </div>
         <button onClick={exportCSV} className="btn-primary bg-emerald-600 hover:bg-emerald-700">
@@ -149,12 +195,12 @@ export default function Reports() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
-        {['Purchases', 'Stock', 'Sales', 'Transport'].map(t => (
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto">
+        {['Purchases', 'Stock', 'Sales', 'Fisherman Ledger', 'Boat Costs', 'Transport'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 transition ${
+            className={`pb-3 px-3 text-xs font-bold border-b-2 transition whitespace-nowrap ${
               tab === t ? 'border-blue-700 text-blue-900' : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >

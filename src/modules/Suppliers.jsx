@@ -291,35 +291,102 @@ export default function Suppliers() {
         const statement = supAccountStatement(s, viewSup.id)
         const supFuelIssues = (s.fuelIssues || []).filter(f => f.supId === viewSup.id)
         const supWorkOrders = (s.maintenanceOrders || []).filter(m => m.supId === viewSup.id)
+        const supGearIssues = (s.gearIssues || []).filter(g => g.supId === viewSup.id)
+        const supAdvances = (s.advances || []).filter(adv => adv.supId === viewSup.id)
         const supSettlements = (s.settlements || []).filter(st => st.supId === viewSup.id)
+        const supLedgerEntries = (s.fishermanLedger || []).filter(e => e.supId === viewSup.id)
 
         return (
           <Modal
-            title={`Fisherman Statement: ${viewSup.name}`}
-            subtitle={`${viewSup.cat} · ${viewSup.site} · ${viewSup.phone}`}
+            title={`Central Account Statement: ${viewSup.name}`}
+            subtitle={`${viewSup.no} · ${viewSup.cat} · ${viewSup.site} · ${viewSup.phone}`}
             onClose={() => setViewSup(null)}
-            maxWidth="max-w-3xl"
+            maxWidth="max-w-4xl"
           >
             <div className="flex flex-col gap-4 text-xs">
               {/* Financial Balance Summary Banner */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Fish Earnings Due</span>
-                  <b className="font-mono text-emerald-700 text-sm">{tzs(statement.fishOwed)}</b>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                <div className="p-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Fish Earnings</span>
+                  <b className="font-mono text-emerald-700 text-xs sm:text-sm">{tzs(statement.fishOwed)}</b>
                 </div>
-                <div>
+                <div className="p-1">
                   <span className="text-[10px] uppercase font-bold text-red-700 block">Fuel Debt</span>
-                  <b className="font-mono text-red-600 text-sm">-{tzs(statement.fuelDebt)}</b>
+                  <b className="font-mono text-red-600 text-xs sm:text-sm">-{tzs(statement.fuelDebt)}</b>
                 </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-amber-800 block">Boat Maint. Debt</span>
-                  <b className="font-mono text-amber-700 text-sm">-{tzs(statement.maintDebt)}</b>
+                <div className="p-1">
+                  <span className="text-[10px] uppercase font-bold text-amber-800 block">Maint. Debt</span>
+                  <b className="font-mono text-amber-700 text-xs sm:text-sm">-{tzs(statement.maintDebt)}</b>
                 </div>
-                <div className="border-l border-slate-200 pl-2">
-                  <span className="text-[10px] uppercase font-bold text-blue-900 block">Net Fisherman Position</span>
-                  <b className={`font-mono text-sm font-extrabold ${statement.netBalance >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                <div className="p-1">
+                  <span className="text-[10px] uppercase font-bold text-cyan-800 block">Gear Credit</span>
+                  <b className="font-mono text-cyan-700 text-xs sm:text-sm">-{tzs(statement.gearDebt)}</b>
+                </div>
+                <div className="p-1">
+                  <span className="text-[10px] uppercase font-bold text-orange-800 block">Food Credit</span>
+                  <b className="font-mono text-orange-700 text-xs sm:text-sm">-{tzs(statement.foodDebt)}</b>
+                </div>
+                <div className="p-1">
+                  <span className="text-[10px] uppercase font-bold text-purple-800 block">Advances</span>
+                  <b className="font-mono text-purple-700 text-xs sm:text-sm">-{tzs(statement.advancesDebt)}</b>
+                </div>
+                <div className="p-1 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-blue-900 block">Net Position</span>
+                  <b className={`font-mono text-xs sm:text-sm font-extrabold ${statement.netBalance >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                     {tzs(statement.netBalance)}
                   </b>
+                </div>
+              </div>
+
+              {/* Central Ledger Entries Tab / Table */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Central Financial Ledger Entries ({supLedgerEntries.length})</span>
+                  <span className="text-blue-900 font-semibold font-mono">Shared Account Ledger</span>
+                </h4>
+                <div className="data-table-wrap max-h-48 overflow-y-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Type &amp; Description</th>
+                        <th>Source</th>
+                        <th>Ref #</th>
+                        <th>Debit (Debt)</th>
+                        <th>Credit (Paid)</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {supLedgerEntries.map(e => (
+                        <tr key={e.id}>
+                          <td className="font-mono text-xs">{e.date || '-'}</td>
+                          <td>
+                            <b className="text-slate-800 block">{e.type}</b>
+                            <span className="text-[11px] text-slate-400 block truncate max-w-xs">{e.notes}</span>
+                          </td>
+                          <td>
+                            <Badge variant="blue">{e.source?.toUpperCase()}</Badge>
+                          </td>
+                          <td className="font-mono text-xs text-blue-700">{e.ref || e.refId || '-'}</td>
+                          <td className="font-mono font-bold text-red-600">
+                            {e.debit ? tzs(e.debit) : '-'}
+                          </td>
+                          <td className="font-mono font-bold text-emerald-700">
+                            {e.credit ? tzs(e.credit) : '-'}
+                          </td>
+                          <td>
+                            <Badge variant="green">{e.status || 'Approved'}</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                      {supLedgerEntries.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="text-center py-3 text-slate-400">No ledger transactions posted for this fisherman yet.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -329,7 +396,7 @@ export default function Suppliers() {
                   <span>1. Fish Catch Delivered ({s.batches.filter(b => b.sup === viewSup.id).length})</span>
                   <span className="text-slate-500 font-normal">Landing Weighbridge</span>
                 </h4>
-                <div className="data-table-wrap max-h-36">
+                <div className="data-table-wrap max-h-32 overflow-y-auto">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -361,7 +428,7 @@ export default function Suppliers() {
                   <span>2. Dock Fuel Issues ({supFuelIssues.length})</span>
                   <span className="text-red-700 font-bold">Unpaid: {tzs(statement.fuelDebt)}</span>
                 </h4>
-                <div className="data-table-wrap max-h-36">
+                <div className="data-table-wrap max-h-32 overflow-y-auto">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -388,7 +455,7 @@ export default function Suppliers() {
                       ))}
                       {supFuelIssues.length === 0 && (
                         <tr>
-                          <td colSpan={7} className="text-center py-3 text-slate-400">No fuel issues logged for this fisherman.</td>
+                          <td colSpan={7} className="text-center py-2 text-slate-400">No fuel issues logged for this fisherman.</td>
                         </tr>
                       )}
                     </tbody>
@@ -396,83 +463,147 @@ export default function Suppliers() {
                 </div>
               </div>
 
-              {/* SECTION 3: BOAT MAINTENANCE WORK ORDERS */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>3. Marine Fleet Maintenance ({supWorkOrders.length})</span>
-                  <span className="text-amber-800 font-bold">Recoverable: {tzs(statement.maintDebt)}</span>
-                </h4>
-                <div className="data-table-wrap max-h-36">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Order #</th>
-                        <th>Date</th>
-                        <th>Job Title</th>
-                        <th>Mechanic</th>
-                        <th>Total Cost</th>
-                        <th>Arrangement</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {supWorkOrders.map(m => (
-                        <tr key={m.id}>
-                          <td className="font-mono text-xs text-blue-800">{m.no}</td>
-                          <td>{m.date}</td>
-                          <td className="truncate max-w-[140px]">{m.title}</td>
-                          <td>{m.mechanic}</td>
-                          <td className="font-mono">{tzs(m.totalCost)}</td>
-                          <td>{m.arrangement}</td>
-                          <td><Badge variant={m.status === 'Completed' ? 'green' : 'amber'}>{m.status}</Badge></td>
-                        </tr>
-                      ))}
-                      {supWorkOrders.length === 0 && (
+              {/* SECTION 3: BOAT MAINTENANCE & GEAR */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>3. Fleet Maintenance ({supWorkOrders.length})</span>
+                    <span className="text-amber-800 font-bold">Recoverable: {tzs(statement.maintDebt)}</span>
+                  </h4>
+                  <div className="data-table-wrap max-h-32 overflow-y-auto">
+                    <table className="data-table">
+                      <thead>
                         <tr>
-                          <td colSpan={7} className="text-center py-3 text-slate-400">No boat maintenance work orders for this fisherman.</td>
+                          <th>Order #</th>
+                          <th>Title</th>
+                          <th>Total</th>
+                          <th>Status</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {supWorkOrders.map(m => (
+                          <tr key={m.id}>
+                            <td className="font-mono text-xs text-blue-800">{m.no}</td>
+                            <td className="truncate max-w-[120px]">{m.title}</td>
+                            <td className="font-mono">{tzs(m.totalCost)}</td>
+                            <td><Badge variant={m.status === 'Completed' ? 'green' : 'amber'}>{m.status}</Badge></td>
+                          </tr>
+                        ))}
+                        {supWorkOrders.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="text-center py-2 text-slate-400">No maintenance orders.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>4. Gear &amp; Equipment ({supGearIssues.length})</span>
+                    <span className="text-cyan-800 font-bold">Credit: {tzs(statement.gearDebt)}</span>
+                  </h4>
+                  <div className="data-table-wrap max-h-32 overflow-y-auto">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Issue #</th>
+                          <th>Items</th>
+                          <th>Total</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supGearIssues.map(g => (
+                          <tr key={g.id}>
+                            <td className="font-mono text-xs text-blue-800">{g.no}</td>
+                            <td className="truncate max-w-[120px]">
+                              {g.items?.map(i => `${i.name} (x${i.qty})`).join(', ') || 'Gear'}
+                            </td>
+                            <td className="font-mono">{tzs(g.totalCost)}</td>
+                            <td><Badge variant="blue">{g.status}</Badge></td>
+                          </tr>
+                        ))}
+                        {supGearIssues.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="text-center py-2 text-slate-400">No gear issued.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              {/* SECTION 4: SETTLEMENTS & CASH CLEARANCES */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                  <span>4. Catch Deductions &amp; Settlements ({supSettlements.length})</span>
-                  <span className="text-slate-500 font-normal">Cross-reconciliation</span>
-                </h4>
-                <div className="data-table-wrap max-h-32">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Settlement #</th>
-                        <th>Date</th>
-                        <th>Fish Value</th>
-                        <th>Fuel Deducted</th>
-                        <th>Maintenance Deducted</th>
-                        <th>Net Paid</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {supSettlements.map(st => (
-                        <tr key={st.id}>
-                          <td className="font-mono text-xs text-blue-800">{st.no}</td>
-                          <td>{st.date}</td>
-                          <td className="font-mono">{tzs(st.fishTotal)}</td>
-                          <td className="font-mono text-red-600">-{tzs(st.fuelDeducted || 0)}</td>
-                          <td className="font-mono text-amber-700">-{tzs(st.maintDeducted || 0)}</td>
-                          <td className="font-mono font-bold text-emerald-700">{tzs(st.netPayable)}</td>
-                        </tr>
-                      ))}
-                      {supSettlements.length === 0 && (
+              {/* SECTION 5: CASH ADVANCES & SETTLEMENTS */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>5. Cash Advances ({supAdvances.length})</span>
+                    <span className="text-purple-800 font-bold">Outstanding: {tzs(statement.advancesDebt)}</span>
+                  </h4>
+                  <div className="data-table-wrap max-h-32 overflow-y-auto">
+                    <table className="data-table">
+                      <thead>
                         <tr>
-                          <td colSpan={6} className="text-center py-3 text-slate-400">No catch deductions settled yet.</td>
+                          <th>Advance #</th>
+                          <th>Category</th>
+                          <th>Amount</th>
+                          <th>Status</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {supAdvances.map(a => (
+                          <tr key={a.id}>
+                            <td className="font-mono text-xs text-blue-800">{a.no}</td>
+                            <td>{a.category}</td>
+                            <td className="font-mono">{tzs(a.amount)}</td>
+                            <td><Badge variant={a.status === 'Approved' ? 'green' : 'amber'}>{a.status}</Badge></td>
+                          </tr>
+                        ))}
+                        {supAdvances.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="text-center py-2 text-slate-400">No cash advances.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>6. Season Settlements ({supSettlements.length})</span>
+                    <span className="text-emerald-700 font-bold">Finalized</span>
+                  </h4>
+                  <div className="data-table-wrap max-h-32 overflow-y-auto">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Settlement #</th>
+                          <th>Date</th>
+                          <th>Deducted</th>
+                          <th>Net Paid</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {supSettlements.map(st => (
+                          <tr key={st.id}>
+                            <td className="font-mono text-xs text-blue-800">{st.no}</td>
+                            <td>{st.date}</td>
+                            <td className="font-mono text-red-600">-{tzs(st.totalDeductions || (st.fuelDeducted || 0) + (st.maintDeducted || 0))}</td>
+                            <td className="font-mono font-bold text-emerald-700">{tzs(st.netPayable)}</td>
+                          </tr>
+                        ))}
+                        {supSettlements.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="text-center py-2 text-slate-400">No season settlements finalized.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
