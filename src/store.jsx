@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 
-const KEY = 'fishtrade.v7'
+const KEY = 'fishtrade.v8'
 const today = () => new Date().toISOString().slice(0, 10)
 export const SPECIES = ['Nile Perch', 'Tilapia', 'Dagaa (Sardines)', 'Catfish']
 export const SITES = [
@@ -19,13 +19,13 @@ export const COLD_ROOMS = [
 export const ROLES = {
   Owner: 0,
   'General Manager': 0,
-  'Purchasing Officer': ['home', 'buy', 'fuel', 'maintenance', 'stock', 'transport', 'reports'],
+  'Purchasing Officer': ['home', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'stock', 'transport', 'reports'],
   'Quality Inspector': ['home', 'quality', 'stock', 'reports'],
-  Storekeeper: ['home', 'stock', 'fuel', 'maintenance', 'quality', 'reports'],
-  Accountant: ['home', 'hq', 'payments', 'fuel', 'maintenance', 'expenses', 'suppliers', 'sales', 'transport', 'reports'],
+  Storekeeper: ['home', 'stock', 'fuel', 'maintenance', 'gear', 'quality', 'reports'],
+  Accountant: ['home', 'hq', 'payments', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'expenses', 'suppliers', 'sales', 'transport', 'reports'],
   'Sales Officer': ['home', 'sales', 'transport', 'stock', 'reports'],
   'Transport Officer': ['home', 'transport', 'maintenance'],
-  Auditor: ['home', 'hq', 'buy', 'fuel', 'maintenance', 'stock', 'sales', 'suppliers', 'quality', 'payments', 'transport', 'expenses', 'compliance', 'audit', 'reports']
+  Auditor: ['home', 'hq', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'stock', 'sales', 'suppliers', 'quality', 'payments', 'transport', 'expenses', 'compliance', 'audit', 'reports']
 }
 
 export const uid = p => p + Math.random().toString(36).slice(2, 8)
@@ -50,35 +50,76 @@ export const supBal = (s, id) => {
   return bought - paid
 }
 
-export const supFuelDebt = (s, id) => {
-  const issues = (s.fuelIssues || []).filter(f => f.supId === id)
-  const debit = issues.reduce((a, f) => a + (f.total || 0), 0)
-  const directPaid = issues.reduce((a, f) => a + (f.paid || 0), 0)
-  const extraPaid = (s.fuelPayments || []).filter(p => p.supId === id).reduce((a, p) => a + (p.amt || 0), 0)
-  const settled = (s.settlements || []).filter(st => st.supId === id).reduce((a, st) => a + (st.fuelDeducted || 0), 0)
-  return Math.max(0, debit - directPaid - extraPaid - settled)
-}
-
-export const supMaintDebt = (s, id) => {
-  const debit = (s.maintenanceOrders || []).filter(m => m.supId === id).reduce((a, m) => a + (m.recoverable || 0), 0)
-  const extraPaid = (s.maintPayments || []).filter(p => p.supId === id).reduce((a, p) => a + (p.amt || 0), 0)
-  const settled = (s.settlements || []).filter(st => st.supId === id).reduce((a, st) => a + (st.maintDeducted || 0), 0)
-  return Math.max(0, debit - extraPaid - settled)
+// Central Fisherman Ledger Queries
+export const getFishermanLedger = (s, id) => {
+  const entries = (s.fishermanLedger || []).filter(e => e.supId === id)
+  return entries.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''))
 }
 
 export const supAccountStatement = (s, id) => {
+  const ledger = (s.fishermanLedger || []).filter(e => e.supId === id && e.status !== 'Reversed')
+  
+  // Breakdown by source module
+  const fuelDebt = ledger.filter(e => e.source === 'fuel').reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0)
+  const maintDebt = ledger.filter(e => e.source === 'maintenance').reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0)
+  const gearDebt = ledger.filter(e => e.source === 'gear').reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0)
+  const foodDebt = ledger.filter(e => e.source === 'catering').reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0)
+  const advancesDebt = ledger.filter(e => e.source === 'advances').reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0)
+  const otherDebt = ledger.filter(e => e.source === 'other').reduce((sum, e) => sum + (e.debit || 0) - (e.credit || 0), 0)
+
+  // Overall ledger recoverable balance (Total Debit - Total Credit)
+  const totalDebits = ledger.reduce((sum, e) => sum + (e.debit || 0), 0)
+  const totalCredits = ledger.reduce((sum, e) => sum + (e.credit || 0), 0)
+  const totalRecoverableDebt = Math.max(0, totalDebits - totalCredits)
+
+  // Fish catch earnings
   const fishOwed = supBal(s, id)
-  const fuelDebt = supFuelDebt(s, id)
-  const maintDebt = supMaintDebt(s, id)
-  const totalDebt = fuelDebt + maintDebt
-  const netBalance = fishOwed - totalDebt
+  const totalCatchValue = s.batches.filter(b => b.sup === id).reduce((a, b) => a + tot(b), 0)
+  const totalCatchPaid = s.pays.filter(p => p.sup === id).reduce((a, p) => a + p.amt, 0)
+  const netBalance = fishOwed - totalRecoverableDebt
+
   return {
     fishOwed,
-    fuelDebt,
-    maintDebt,
-    totalDebt,
+    totalCatchValue,
+    totalCatchPaid,
+    fuelDebt: Math.max(0, fuelDebt),
+    maintDebt: Math.max(0, maintDebt),
+    gearDebt: Math.max(0, gearDebt),
+    foodDebt: Math.max(0, foodDebt),
+    advancesDebt: Math.max(0, advancesDebt),
+    otherDebt: Math.max(0, otherDebt),
+    totalDebt: totalRecoverableDebt,
     netBalance
   }
+}
+
+export const supFuelDebt = (s, id) => {
+  const stmt = supAccountStatement(s, id)
+  return stmt.fuelDebt
+}
+
+export const supMaintDebt = (s, id) => {
+  const stmt = supAccountStatement(s, id)
+  return stmt.maintDebt
+}
+
+export const supAdvancesDebt = (s, id) => {
+  const stmt = supAccountStatement(s, id)
+  return stmt.advancesDebt
+}
+
+export const supGearDebt = (s, id) => {
+  const stmt = supAccountStatement(s, id)
+  return stmt.gearDebt
+}
+
+export const supFoodDebt = (s, id) => {
+  const stmt = supAccountStatement(s, id)
+  return stmt.foodDebt
+}
+
+export const getBoatCosts = (s, boatId) => {
+  return (s.boatCostLedger || []).filter(c => c.boatId === boatId)
 }
 
 export const cusBal = (s, id) => {
@@ -116,7 +157,7 @@ export const mkBranch = (site, k = 1, demo = true) => {
   const d = {
     wh: [...COLD_ROOMS],
     audit: [],
-    seq: { pur: 126, sal: 85, fuel: 104, wo: 126, set: 41 },
+    seq: { pur: 126, sal: 85, fuel: 104, wo: 126, set: 41, gear: 101, adv: 101, proj: 101, cat: 101 },
     suppliers: [],
     batches: [],
     pays: [],
@@ -125,6 +166,33 @@ export const mkBranch = (site, k = 1, demo = true) => {
     exps: [],
     trips: [],
     comp: [],
+    seasons: [
+      {
+        id: 'seas_2026_q1',
+        name: 'Season 2026-Q1 (Lake Victoria Main Run)',
+        code: '2026-Q1',
+        start: d0(60),
+        end: d0(-30),
+        status: 'Active',
+        targetKg: 250000,
+        budget: 65000000,
+        notes: 'High Nile Perch & Tilapia harvest season across Mwanza, Kigoma, Musoma'
+      },
+      {
+        id: 'seas_2025_q4',
+        name: 'Season 2025-Q4 (Nile Perch Peak)',
+        code: '2025-Q4',
+        start: d0(150),
+        end: d0(61),
+        status: 'Closed',
+        targetKg: 220000,
+        budget: 52000000,
+        notes: 'Q4 season completed, verified and fully settled'
+      }
+    ],
+    activeSeasonId: 'seas_2026_q1',
+    fishermanLedger: [],
+    boatCostLedger: [],
     fuelTanks: [
       { id: 'tank_main_petrol', name: 'Main Tank (Petrol)', location: 'Main Landing Dock', fuel: 'Petrol', capacity: 5000, current: 3000, buyPrice: 2850, sellPrice: 3200, unit: 'Litres' },
       { id: 'tank_main_diesel', name: 'Main Tank (Diesel)', location: 'Main Landing Dock', fuel: 'Diesel', capacity: 6000, current: 5000, buyPrice: 2950, sellPrice: 3350, unit: 'Litres' },
@@ -139,10 +207,18 @@ export const mkBranch = (site, k = 1, demo = true) => {
     fuelPurchases: [],
     fuelIssues: [],
     fuelPayments: [],
+    fuelAdjustments: [],
     boats: [],
     spareParts: [],
     maintenanceOrders: [],
     maintPayments: [],
+    gearItems: [],
+    gearIssues: [],
+    cateringCooks: [],
+    cookAdvances: [],
+    cateringExpenses: [],
+    boatProjects: [],
+    advances: [],
     settlements: []
   }
 
@@ -160,7 +236,7 @@ export const mkBranch = (site, k = 1, demo = true) => {
       boatId: 'boat0',
       boatReg: 'TZN-304',
       nida: '19740612-44102-00015',
-      creditLimit: 2000000,
+      creditLimit: 3000000,
       status: 'Active',
       totalSupplied: 4200
     },
@@ -175,7 +251,7 @@ export const mkBranch = (site, k = 1, demo = true) => {
       boatId: 'boat1',
       boatReg: 'TZN-108',
       nida: '19810315-11029-00032',
-      creditLimit: 3500000,
+      creditLimit: 5000000,
       status: 'Active',
       totalSupplied: 8900
     },
@@ -190,7 +266,7 @@ export const mkBranch = (site, k = 1, demo = true) => {
       boatId: 'boat2',
       boatReg: 'TZN-205',
       nida: '19851120-33201-00041',
-      creditLimit: 5000000,
+      creditLimit: 6000000,
       status: 'Active',
       totalSupplied: 6150
     },
@@ -205,7 +281,7 @@ export const mkBranch = (site, k = 1, demo = true) => {
       boatId: 'boat3',
       boatReg: 'TZN-412',
       nida: '19900822-55104-00018',
-      creditLimit: 1500000,
+      creditLimit: 2500000,
       status: 'Active',
       totalSupplied: 3200
     }
@@ -319,18 +395,388 @@ export const mkBranch = (site, k = 1, demo = true) => {
     { id: 'wo1', no: 'WO-000124', date: d0(7), boatId: 'boat0', supId: 's0', title: 'Yamaha 40HP Propeller Replacement & Carb Tuning', fault: 'Propeller blades damaged by rocky reef near Ukerewe Island; engine misfiring at high RPM', mechanic: 'Fundi Rashidi', status: 'Completed', arrangement: 'Company-assisted (Deduct from fish)', parts: [{ partId: 'sp_prop', name: 'Yamaha 40HP Propeller', qty: 1, cost: 245000 }, { partId: 'sp_spark', name: 'NGK Marine Spark Plug', qty: 2, cost: 24000 }], partsCost: 269000, laborCost: 70000, otherCost: 0, totalCost: 339000, recoverable: 339000, recovered: 139000 }
   ]
 
+  // Gear & Equipment Catalog & Issued Inventory
+  d.gearItems = [
+    { id: 'gi_net_np', name: 'Monofilament Gill Net 6-inch (100m)', category: 'Reusable', stock: 24, minStock: 5, unitCost: 85000, sellPrice: 110000, unit: 'nets', condition: 'Good' },
+    { id: 'gi_net_dagaa', name: 'Dagaa Seine Net Mosquito Mesh (50m)', category: 'Reusable', stock: 12, minStock: 3, unitCost: 190000, sellPrice: 240000, unit: 'nets', condition: 'Good' },
+    { id: 'gi_rope_poly', name: 'Polypropylene Marine Anchor Rope 14mm (100m roll)', category: 'Reusable', stock: 18, minStock: 4, unitCost: 75000, sellPrice: 95000, unit: 'rolls', condition: 'Good' },
+    { id: 'gi_lamp_solar', name: 'Night Fishing Pressure Solar LED Lamp 50W', category: 'Asset', stock: 30, minStock: 6, unitCost: 140000, sellPrice: 180000, unit: 'units', condition: 'New' },
+    { id: 'gi_gps_finder', name: 'Garmin Striker 4 GPS Fish Finder with Transducer', category: 'Asset', stock: 6, minStock: 2, unitCost: 450000, sellPrice: 550000, unit: 'units', condition: 'New' },
+    { id: 'gi_hook_box', name: 'Mustad Longline Marine Hooks Size 8 (Box of 100)', category: 'Consumable', stock: 85, minStock: 15, unitCost: 22000, sellPrice: 30000, unit: 'boxes', condition: 'New' },
+    { id: 'gi_float_cork', name: 'High-Density EVA Fishing Floats (Pack of 50)', category: 'Consumable', stock: 40, minStock: 10, unitCost: 35000, sellPrice: 48000, unit: 'packs', condition: 'New' },
+    { id: 'gi_vest_marine', name: 'SOLAS Approved Marine Life Jacket (Adult 150N)', category: 'Asset', stock: 50, minStock: 10, unitCost: 40000, sellPrice: 50000, unit: 'pieces', condition: 'New' }
+  ]
+
+  d.gearIssues = [
+    {
+      id: 'giss0',
+      no: 'GEAR-00021',
+      date: d0(4),
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      items: [{ itemId: 'gi_net_np', name: 'Monofilament Gill Net 6-inch', qty: 2, price: 110000, cost: 220000 }],
+      totalCost: 220000,
+      paid: 40000,
+      recoverable: 180000,
+      arrangement: 'Fisherman-recoverable (Credit)',
+      status: 'Issued',
+      conditionOnIssue: 'New',
+      returnedQty: 0,
+      issuedBy: 'Baraka Mussa (Storekeeper)',
+      notes: 'Issued before moonless night expedition'
+    },
+    {
+      id: 'giss1',
+      no: 'GEAR-00020',
+      date: d0(8),
+      supId: 's1',
+      boatId: 'boat1',
+      seasonId: 'seas_2026_q1',
+      items: [{ itemId: 'gi_lamp_solar', name: 'Pressure Solar LED Lamp', qty: 2, price: 180000, cost: 360000 }],
+      totalCost: 360000,
+      paid: 360000,
+      recoverable: 0,
+      arrangement: 'Company-funded',
+      status: 'Issued',
+      conditionOnIssue: 'New',
+      returnedQty: 0,
+      issuedBy: 'Baraka Mussa (Storekeeper)',
+      notes: 'BMU safety equipment upgrade'
+    }
+  ]
+
+  // Food & Catering Management (Mama Mpishi)
+  d.cateringCooks = [
+    { id: 'ck0', name: 'Mama Neema (Neema Juma)', phone: '0754 331 992', site: 'Kirumba Mwaloni Dock', assignedBoats: ['boat0', 'boat2'], rating: 'Reliable' },
+    { id: 'ck1', name: 'Bi Zainab Ally', phone: '0714 882 119', site: 'Katonga BMU Landing', assignedBoats: ['boat1', 'boat3'], rating: 'Experienced' }
+  ]
+
+  d.cookAdvances = [
+    {
+      id: 'ca0',
+      no: 'CADV-00101',
+      date: d0(3),
+      cookId: 'ck0',
+      amountIssued: 150000,
+      actualExpenditure: 125000,
+      moneyReturned: 25000,
+      status: 'Reconciled',
+      purpose: 'Daily crew ingredients, maize flour, cooking oil, beans & fresh vegetables',
+      receiptDoc: 'RECEIPT-MKT-4412.jpg',
+      allocatedBoats: ['boat0', 'boat2'],
+      issuedBy: 'Hamisi Ally (Accountant)',
+      notes: 'Mama Neema returned TZS 25,000 cash balance directly to accountant cashbox.'
+    },
+    {
+      id: 'ca1',
+      no: 'CADV-00102',
+      date: d0(1),
+      cookId: 'ck1',
+      amountIssued: 120000,
+      actualExpenditure: 120000,
+      moneyReturned: 0,
+      status: 'Reconciled',
+      purpose: 'Night light fishing crew rations (Kigoma BMU)',
+      receiptDoc: 'RECEIPT-KAT-09.jpg',
+      allocatedBoats: ['boat1'],
+      issuedBy: 'Hamisi Ally (Accountant)',
+      notes: 'Full advance accounted for.'
+    }
+  ]
+
+  d.cateringExpenses = [
+    {
+      id: 'cat0',
+      no: 'CAT-00045',
+      date: d0(3),
+      cookId: 'ck0',
+      advanceRef: 'CADV-00101',
+      seasonId: 'seas_2026_q1',
+      mealsCount: 24,
+      crewSize: 6,
+      mealType: 'Breakfast & Hot Lunch Stew',
+      totalSpent: 125000,
+      boatAllocations: [
+        { boatId: 'boat0', supId: 's0', cost: 75000, recoverable: 75000 },
+        { boatId: 'boat2', supId: 'company', cost: 50000, recoverable: 0 }
+      ],
+      arrangement: 'Fisherman-recoverable (Catch Deduction)',
+      notes: 'Ugali, beans, fresh vegetables and spiced tea for 2 boats'
+    }
+  ]
+
+  // Boat Construction & Investment Projects
+  d.boatProjects = [
+    {
+      id: 'bp0',
+      name: 'New 12-Metre Deep-Water Mashua (MV Ushindi II)',
+      projectNo: 'PROJ-BOAT-001',
+      builder: 'Fundi Mzee Selemani (Kirumba Boat Yard)',
+      builderPhone: '0754 990 123',
+      seasonId: 'seas_2026_q1',
+      assignedSupId: 's0',
+      targetBoatName: 'MV Ushindi II',
+      status: 'In Progress',
+      progressPct: 65,
+      startDate: d0(60),
+      targetCompletion: d0(-30),
+      costBreakdown: {
+        timberMaterials: 3500000,
+        labour: 1800000,
+        engine: 4200000,
+        equipment: 650000,
+        total: 10150000
+      },
+      paidStages: 6500000,
+      balanceToPay: 3650000,
+      ownershipType: 'Company Asset with Fisherman Hire-Purchase',
+      contractualRecoverable: 4000000,
+      repaymentTerms: '20% deduction from agreed fish catch over 2 seasons',
+      stages: [
+        { name: 'Keel Laying & Timber Framing', cost: 2500000, status: 'Completed', date: d0(55) },
+        { name: 'Hardwood Hull Planking & Caulking', cost: 2500000, status: 'Completed', date: d0(30) },
+        { name: 'Marine Engine Installation (Yamaha 40HP)', cost: 3500000, status: 'In Progress', date: d0(5) },
+        { name: 'Deck Fiberglassing & Painting', cost: 1000000, status: 'Pending', date: d0(-15) },
+        { name: 'Sea Trials & Marine Licensing', cost: 650000, status: 'Pending', date: d0(-25) }
+      ],
+      notes: 'High-tensile mninga wood hull for offshore night fishing.'
+    }
+  ]
+
+  // Fisherman Cash Advances & Daily Matumizi
+  d.advances = [
+    {
+      id: 'adv0',
+      no: 'ADV-00101',
+      date: d0(4),
+      at: d0(4) + 'T09:30',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      amount: 150000,
+      category: 'Daily Matumizi',
+      purpose: 'Crew daily meal stipends & family emergency',
+      method: 'M-Pesa (Mobile Money)',
+      phone: '0754 289 110',
+      status: 'Approved',
+      classification: 'Fisherman-recoverable',
+      approvedBy: 'Asha Komba (Manager)',
+      recovered: 0,
+      notes: 'Approved by GM Asha Komba'
+    },
+    {
+      id: 'adv1',
+      no: 'ADV-00102',
+      date: d0(6),
+      at: d0(6) + 'T14:15',
+      supId: 's1',
+      boatId: 'boat1',
+      seasonId: 'seas_2026_q1',
+      amount: 250000,
+      category: 'Emergency / Medical',
+      purpose: 'Hospitalization for crew first mate child',
+      method: 'Airtel Money',
+      phone: '0768 991 422',
+      status: 'Approved',
+      classification: 'Fisherman-recoverable',
+      approvedBy: 'Asha Komba (Manager)',
+      recovered: 50000,
+      notes: 'Emergency disbursement, partial repayment logged'
+    },
+    {
+      id: 'adv2',
+      no: 'ADV-00103',
+      date: d0(1),
+      at: d0(1) + 'T10:00',
+      supId: 's3',
+      boatId: 'boat3',
+      seasonId: 'seas_2026_q1',
+      amount: 100000,
+      category: 'Daily Matumizi',
+      purpose: 'Net repair twine & crew lunch',
+      method: 'Cash',
+      phone: '0782 334 112',
+      status: 'Pending Approval',
+      classification: 'Fisherman-recoverable',
+      approvedBy: '',
+      recovered: 0,
+      notes: 'Waiting for manager sign-off'
+    }
+  ]
+
+  // Central Fisherman Financial Ledger Entries
+  d.fishermanLedger = [
+    {
+      id: 'fl_01',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      date: d0(2),
+      type: 'Fuel Issued',
+      debit: 320000,
+      credit: 0,
+      source: 'fuel',
+      refId: 'fi0',
+      ref: 'FUEL-001458',
+      notes: 'Issued 100L Petrol for MV Furaha',
+      createdBy: 'Hamisi Ally (Accountant)',
+      status: 'Approved',
+      createdAt: d0(2) + 'T08:32:00'
+    },
+    {
+      id: 'fl_02',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      date: d0(2),
+      type: 'Cash Payment',
+      debit: 0,
+      credit: 100000,
+      source: 'fuel',
+      refId: 'fp0',
+      ref: 'CASH-0021',
+      notes: 'Direct cash payment at pump counter',
+      createdBy: 'Staff 01 (Hamisi)',
+      status: 'Approved',
+      createdAt: d0(2) + 'T08:35:00'
+    },
+    {
+      id: 'fl_03',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      date: d0(7),
+      type: 'Maintenance Repair',
+      debit: 339000,
+      credit: 0,
+      source: 'maintenance',
+      refId: 'wo1',
+      ref: 'WO-000124',
+      notes: 'Yamaha 40HP Propeller replacement (Recoverable)',
+      createdBy: 'Asha Komba (Manager)',
+      status: 'Approved',
+      createdAt: d0(7) + 'T10:00:00'
+    },
+    {
+      id: 'fl_04',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      date: d0(4),
+      type: 'Cash Advance',
+      debit: 150000,
+      credit: 0,
+      source: 'advances',
+      refId: 'adv0',
+      ref: 'ADV-00101',
+      notes: 'Crew daily meal stipends & family emergency',
+      createdBy: 'Asha Komba (Manager)',
+      status: 'Approved',
+      createdAt: d0(4) + 'T09:30:00'
+    },
+    {
+      id: 'fl_05',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      date: d0(4),
+      type: 'Gear Issued',
+      debit: 180000,
+      credit: 0,
+      source: 'gear',
+      refId: 'giss0',
+      ref: 'GEAR-00021',
+      notes: '2x Monofilament Gill Nets (Recoverable credit)',
+      createdBy: 'Baraka Mussa (Storekeeper)',
+      status: 'Approved',
+      createdAt: d0(4) + 'T11:00:00'
+    },
+    {
+      id: 'fl_06',
+      supId: 's0',
+      boatId: 'boat0',
+      seasonId: 'seas_2026_q1',
+      date: d0(3),
+      type: 'Food & Catering',
+      debit: 75000,
+      credit: 0,
+      source: 'catering',
+      refId: 'cat0',
+      ref: 'CAT-00045',
+      notes: 'Crew meals & offshore provisions via Mama Neema',
+      createdBy: 'Hamisi Ally (Accountant)',
+      status: 'Approved',
+      createdAt: d0(3) + 'T12:00:00'
+    },
+    {
+      id: 'fl_07',
+      supId: 's1',
+      boatId: 'boat1',
+      seasonId: 'seas_2026_q1',
+      date: d0(6),
+      type: 'Cash Advance',
+      debit: 250000,
+      credit: 0,
+      source: 'advances',
+      refId: 'adv1',
+      ref: 'ADV-00102',
+      notes: 'Emergency hospitalization advance for crew first mate',
+      createdBy: 'Asha Komba (Manager)',
+      status: 'Approved',
+      createdAt: d0(6) + 'T14:15:00'
+    },
+    {
+      id: 'fl_08',
+      supId: 's1',
+      boatId: 'boat1',
+      seasonId: 'seas_2026_q1',
+      date: d0(5),
+      type: 'Cash Advance Repayment',
+      debit: 0,
+      credit: 50000,
+      source: 'advances',
+      refId: 'adv1_p1',
+      ref: 'REPAY-001',
+      notes: 'Direct cash recovery from fisherman',
+      createdBy: 'Hamisi Ally (Accountant)',
+      status: 'Approved',
+      createdAt: d0(5) + 'T16:00:00'
+    },
+    {
+      id: 'fl_09',
+      supId: 's1',
+      boatId: 'boat1',
+      seasonId: 'seas_2026_q1',
+      date: d0(1),
+      type: 'Fuel Issued',
+      debit: 192000,
+      credit: 0,
+      source: 'fuel',
+      refId: 'fi4',
+      ref: 'FUEL-001454',
+      notes: '60L Petrol issued for Dagaa night light voyage',
+      createdBy: 'Staff 01 (Hamisi)',
+      status: 'Approved',
+      createdAt: d0(1) + 'T08:00:00'
+    }
+  ]
+
+  // Boat Cost Ledger
+  d.boatCostLedger = [
+    { id: 'bc0', boatId: 'boat0', seasonId: 'seas_2026_q1', date: d0(2), cat: 'Fuel', cost: 320000, allocation: 'Fisherman-recoverable', ref: 'FUEL-001458', notes: '100L Petrol issued' },
+    { id: 'bc1', boatId: 'boat0', seasonId: 'seas_2026_q1', date: d0(7), cat: 'Maintenance', cost: 339000, allocation: 'Fisherman-recoverable', ref: 'WO-000124', notes: 'Propeller replacement & tuning' },
+    { id: 'bc2', boatId: 'boat0', seasonId: 'seas_2026_q1', date: d0(4), cat: 'Gear', cost: 220000, allocation: 'Fisherman-recoverable', ref: 'GEAR-00021', notes: '2x Gill Nets issued' },
+    { id: 'bc3', boatId: 'boat0', seasonId: 'seas_2026_q1', date: d0(3), cat: 'Food', cost: 75000, allocation: 'Fisherman-recoverable', ref: 'CAT-00045', notes: 'Crew rations' },
+    { id: 'bc4', boatId: 'boat2', seasonId: 'seas_2026_q1', date: d0(3), cat: 'Maintenance', cost: 180000, allocation: 'Company-funded', ref: 'WO-000125', notes: 'Company collection vessel 250hr service' },
+    { id: 'bc5', boatId: 'boat1', seasonId: 'seas_2026_q1', date: d0(1), cat: 'Fuel', cost: 192000, allocation: 'Fisherman-recoverable', ref: 'FUEL-001454', notes: '60L Petrol night run' }
+  ]
+
   d.customers = [
     { id: 'c0', code: 'IND-01', name: 'ABC Fish Processing Ltd', phone: '028 250 0110', location: 'Nyakato Industrial Area, Mwanza', limit: 40000000, contact: 'Mr. Patrick Temba' },
     { id: 'c1', code: 'IND-02', name: 'Victoria Perch Exporters Ltd', phone: '028 254 0220', location: 'Ilemela Port Road, Mwanza', limit: 35000000, contact: 'Grace Minja' },
     { id: 'c2', code: 'IND-03', name: 'TanFish Cold Chains Dar', phone: '022 212 9000', location: 'Kurasini Harbor, Dar es Salaam', limit: 25000000, contact: 'Ally Rashid' }
   ]
-
-  const basePrices = {
-    'Nile Perch': 8000,
-    'Tilapia': 5200,
-    'Dagaa (Sardines)': 2600,
-    'Catfish': 4500
-  }
 
   const sampleData = [
     { sp: 'Nile Perch', grade: 'A', kg: 1400, price: 8200, sup: 's0', daysAgo: 14, temp: 1.8, wh: d.wh[0] },
@@ -440,48 +886,55 @@ export const mkBranch = (site, k = 1, demo = true) => {
     { id: 'k2', type: 'Sanitary & Cold Chain Inspection Cert', ref: 'SAN-CERT-4412', who: 'Tanzania Food & Drugs Authority (TMDA)', exp: '2027-06-15', status: 'Valid' }
   ]
 
+  // Master Season Settlement Records
   d.settlements = [
     {
       id: 'set0',
       no: 'SET-00041',
       date: d0(1),
       at: d0(1) + 'T11:45',
-      purId: 'PUR-000120',
+      seasonId: 'seas_2026_q1',
       supId: 's0',
-      fishTotal: 2000000,
-      fuelDeducted: 940000,
-      maintDeducted: 0,
-      netPayable: 1060000,
+      boatId: 'boat0',
+      agreedEarnings: 11480000, // Total catch supplied
+      fuelDeducted: 740000,
+      maintDeducted: 200000,
+      gearDeducted: 180000,
+      foodDeducted: 75000,
+      advancesDeducted: 150000,
+      otherDeducted: 50000,
+      totalDeductions: 1395000,
+      previousPaid: 8000000,
+      netPayable: 2085000,
       method: 'M-Pesa (Mobile Money)',
-      notes: 'Fuel credit debt TZS 940,000 deducted from Nile Perch 2,000kg catch payout'
+      status: 'Approved & Disbursed',
+      settlementType: 'Full Season Settlement',
+      approvedBy: 'John Mwangi (Director)',
+      notes: 'Full reconciliation of Lake Victoria Season 2026-Q1 for Mzee Juma (MV Furaha)'
     },
     {
       id: 'set1',
       no: 'SET-00040',
       date: d0(3),
       at: d0(3) + 'T14:20',
-      purId: 'PUR-000121',
+      seasonId: 'seas_2026_q1',
       supId: 's1',
-      fishTotal: 3120000,
-      fuelDeducted: 384000,
+      boatId: 'boat1',
+      agreedEarnings: 15120000,
+      fuelDeducted: 192000,
       maintDeducted: 0,
-      netPayable: 2736000,
+      gearDeducted: 0,
+      foodDeducted: 0,
+      advancesDeducted: 200000,
+      otherDeducted: 0,
+      totalDeductions: 392000,
+      previousPaid: 12000000,
+      netPayable: 2728000,
       method: 'Bank RTGS',
-      notes: 'Fuel issued for Dagaa night expedition deducted from batch purchase'
-    },
-    {
-      id: 'set2',
-      no: 'SET-00039',
-      date: d0(6),
-      at: d0(6) + 'T09:15',
-      purId: 'PUR-000124',
-      supId: 's3',
-      fishTotal: 1850000,
-      fuelDeducted: 256000,
-      maintDeducted: 0,
-      netPayable: 1594000,
-      method: 'M-Pesa (Mobile Money)',
-      notes: 'Partial fuel recovery against Tilapia delivery'
+      status: 'Approved & Disbursed',
+      settlementType: 'Partial Settlement',
+      approvedBy: 'Asha Komba (Manager)',
+      notes: 'BMU night fishing expedition payout after advances and fuel credit deduction'
     }
   ]
 
@@ -500,7 +953,7 @@ const ST = (n, u, role, br, pin = '1234') => ({
 })
 
 const seedDb = () => ({
-  v: 7,
+  v: 8,
   ses: null,
   plat: {
     admin: { username: 'admin', pin: H('admin123'), name: 'Platform Admin' },
@@ -546,11 +999,25 @@ const L = (p, m) => {
   })
 }
 
+// Internal Ledger helper
+const postLedgerEntry = (p, entry) => {
+  p.fishermanLedger = p.fishermanLedger || []
+  const id = uid('fl')
+  const newEntry = {
+    id,
+    createdAt: new Date().toISOString(),
+    status: 'Approved',
+    ...entry
+  }
+  p.fishermanLedger.unshift(newEntry)
+  return newEntry
+}
+
 export function Store({ children }) {
   const [db, setDb] = useState(() => {
     try {
       const v = JSON.parse(localStorage.getItem(KEY))
-      if (v && v.v === 6) return v
+      if (v && v.v === 8) return v
     } catch (e) {}
     return seedDb()
   })
@@ -588,6 +1055,13 @@ export function Store({ children }) {
     })
 
   const a = {
+    setActiveSeason: seasonId =>
+      up(p => {
+        p.activeSeasonId = seasonId
+        L(p, `Switched active fishing season to ${seasonId}`)
+        return p
+      }),
+
     addSup: d =>
       up(p => {
         const no = 'SUP-' + String(p.suppliers.length + 1).padStart(3, '0')
@@ -595,6 +1069,7 @@ export function Store({ children }) {
         L(p, `Registered supplier ${d.name} (${no})`)
         return p
       }),
+
     addCus: d =>
       up(p => {
         const code = 'IND-' + String(p.customers.length + 1).padStart(2, '0')
@@ -602,6 +1077,7 @@ export function Store({ children }) {
         L(p, `Added industry client ${d.name} (${code})`)
         return p
       }),
+
     buy: d =>
       up(p => {
         const { paid, method, ...b } = d
@@ -624,6 +1100,7 @@ export function Store({ children }) {
         L(p, `${n}: Bought ${b.kg} kg ${b.sp} (${b.grade}) from supplier @ TZS ${b.price}`)
         return p
       }),
+
     inspect: (id, acc, temp, reason) =>
       up(p => {
         const b = p.batches.find(x => x.id === id)
@@ -636,6 +1113,7 @@ export function Store({ children }) {
         L(p, `${b.no} inspected: Accepted ${acc} kg, rejected ${b.rej} kg (Temp ${temp}°C)`)
         return p
       }),
+
     transfer: (id, to) =>
       up(p => {
         const b = p.batches.find(x => x.id === id)
@@ -643,6 +1121,7 @@ export function Store({ children }) {
         b.wh = to
         return p
       }),
+
     waste: (id, kg, why) =>
       up(p => {
         const b = p.batches.find(x => x.id === id)
@@ -651,6 +1130,7 @@ export function Store({ children }) {
         L(p, `${b.no}: Documented wastage ${kg} kg (${why || 'Deterioration'})`)
         return p
       }),
+
     pay: (sup, amt, m) =>
       up(p => {
         const ref = 'PAY-' + uid('')
@@ -658,6 +1138,7 @@ export function Store({ children }) {
         L(p, `Issued payment of TZS ${amt} (${m}) to supplier`)
         return p
       }),
+
     sell: d =>
       up(p => {
         let need = d.kg
@@ -688,6 +1169,7 @@ export function Store({ children }) {
         L(p, `${no}: Dispatched order of ${d.kg} kg ${d.sp} to processing industry`)
         return p
       }),
+
     receive: (id, amt) =>
       up(p => {
         const x = p.sales.find(y => y.id === id)
@@ -695,6 +1177,7 @@ export function Store({ children }) {
         L(p, `Received payment of TZS ${amt} for invoice ${x.no}`)
         return p
       }),
+
     dispatch: (id, dis) =>
       up(p => {
         const x = p.sales.find(y => y.id === id)
@@ -702,30 +1185,35 @@ export function Store({ children }) {
         L(p, `${x.no} vehicle assigned: ${dis.veh}, Driver: ${dis.drv} (${dis.st})`)
         return p
       }),
+
     addExp: d =>
       up(p => {
         p.exps.push({ id: uid('e'), date: today(), ...d })
         L(p, `Logged operating expense: ${d.cat} (TZS ${d.amt})`)
         return p
       }),
+
     addComp: d =>
       up(p => {
         p.comp.push({ id: uid('k'), ...d })
         L(p, `Added compliance permit ${d.type} (${d.ref})`)
         return p
       }),
+
     addTrip: d =>
       up(p => {
         p.trips.push({ id: uid('t'), ...d })
         L(p, `Recorded transport run: ${d.mode} ${d.from} → ${d.to} (TZS ${d.cost})`)
         return p
       }),
+
     addStaff: d =>
       up(p => {
         p.staff.push({ id: uid('u'), active: true, ...d, pin: H(d.pin) })
         L(p, `Created user account for ${d.username} (${d.role})`)
         return p
       }),
+
     updStaff: (id, d) =>
       up(p => {
         const u = p.staff.find(x => x.id === id)
@@ -736,10 +1224,13 @@ export function Store({ children }) {
         L(p, `Updated staff profile ${u.username}`)
         return p
       }),
+
+    // A. FUEL MANAGEMENT (Connected with Central Fisherman Ledger & Boat Cost Ledger)
     issueFuel: d =>
       up(p => {
         p.fuelTanks = p.fuelTanks || []
         p.fuelIssues = p.fuelIssues || []
+        p.boatCostLedger = p.boatCostLedger || []
         p.seq.fuel = p.seq.fuel || 100
         const tank = p.fuelTanks.find(t => t.id === d.tankId || t.fuel === d.fuel)
         if (tank) {
@@ -752,12 +1243,14 @@ export function Store({ children }) {
         const sup = p.suppliers.find(x => x.id === d.supId)
         const boat = (p.boats || []).find(b => b.id === d.boatId)
         const meUser = (p.staff || []).find(u => u.id === p.me)
+        const seasonId = d.seasonId || p.activeSeasonId || 'seas_2026_q1'
 
         const issueRecord = {
           id: uid('fi'),
           no,
           date: d.date || today(),
           at: nowL(),
+          seasonId,
           supId: d.supId,
           boatId: d.boatId,
           boatReg: boat?.regNo || d.boatReg || '-',
@@ -768,12 +1261,46 @@ export function Store({ children }) {
           total,
           paid,
           balance,
-          arrangement: d.arrangement || 'Cash / Immediate',
+          arrangement: d.arrangement || 'Partial',
           issuedBy: meUser?.name || 'Landing Officer',
           notes: d.notes || ''
         }
         p.fuelIssues.unshift(issueRecord)
-        L(p, `${no}: Issued ${d.litres}L ${d.fuel} to ${sup?.name || 'Fisherman'} (${boat?.regNo || 'Boat'}). TZS ${total} (Paid: ${paid}, Debt: ${balance})`)
+
+        // Post Debit to Central Fisherman Financial Ledger if there is an outstanding recoverable balance
+        if (balance > 0 && d.supId) {
+          postLedgerEntry(p, {
+            supId: d.supId,
+            boatId: d.boatId,
+            seasonId,
+            date: d.date || today(),
+            type: 'Fuel Issued',
+            debit: balance,
+            credit: 0,
+            source: 'fuel',
+            refId: issueRecord.id,
+            ref: no,
+            notes: `Fuel credit: ${d.litres}L ${d.fuel} @ TZS ${d.price}/L (Total ${total}, Paid ${paid})`,
+            createdBy: meUser?.name || 'Fuel Officer'
+          })
+        }
+
+        // Post Boat Cost Ledger
+        if (d.boatId) {
+          p.boatCostLedger.unshift({
+            id: uid('bc'),
+            boatId: d.boatId,
+            seasonId,
+            date: d.date || today(),
+            cat: 'Fuel',
+            cost: total,
+            allocation: d.arrangement === 'Company-paid' ? 'Company-funded' : 'Fisherman-recoverable',
+            ref: no,
+            notes: `${d.litres}L ${d.fuel} issued`
+          })
+        }
+
+        L(p, `${no}: Issued ${d.litres}L ${d.fuel} to ${sup?.name || 'Fisherman'} (${boat?.regNo || 'Boat'}). TZS ${total} (Paid: ${paid}, Balance: ${balance})`)
         return p
       }),
 
@@ -794,10 +1321,12 @@ export function Store({ children }) {
           no,
           date: d.date || today(),
           supId: d.supId,
+          supName: d.supName,
           tankId: d.tankId,
           fuel: tank?.fuel || d.fuel || 'Petrol',
           litres: +d.litres,
           costPerL: +d.costPerL,
+          sellPrice: +d.sellPrice || tank?.sellPrice,
           total,
           docRef: d.docRef || '',
           status: 'Delivered'
@@ -811,7 +1340,7 @@ export function Store({ children }) {
         p.fuelPayments = p.fuelPayments || []
         const sup = p.suppliers.find(x => x.id === supId)
         const ref = 'FPAY-' + uid('')
-        p.fuelPayments.unshift({
+        const payRecord = {
           id: uid('fp'),
           supId,
           amt: +amt,
@@ -820,11 +1349,54 @@ export function Store({ children }) {
           at: nowL(),
           ref,
           notes
+        }
+        p.fuelPayments.unshift(payRecord)
+
+        // Post Credit to Central Fisherman Ledger
+        postLedgerEntry(p, {
+          supId,
+          seasonId: p.activeSeasonId || 'seas_2026_q1',
+          date: today(),
+          type: 'Cash Payment',
+          debit: 0,
+          credit: +amt,
+          source: 'fuel',
+          refId: payRecord.id,
+          ref,
+          notes: `Fuel debt direct payment (${m}): ${notes || 'Pump cash payment'}`,
+          createdBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Accountant'
         })
+
         L(p, `Fuel Debt Payment: Received TZS ${amt} (${m}) from fisherman ${sup?.name || supId}`)
         return p
       }),
 
+    recordFuelAdjustment: d =>
+      up(p => {
+        p.fuelAdjustments = p.fuelAdjustments || []
+        const tank = p.fuelTanks.find(t => t.id === d.tankId)
+        if (tank) {
+          if (d.type === 'Addition / Dipstick Correction') {
+            tank.current = (tank.current || 0) + (+d.litres || 0)
+          } else {
+            tank.current = Math.max(0, (tank.current || 0) - (+d.litres || 0))
+          }
+        }
+        p.fuelAdjustments.unshift({
+          id: uid('fa'),
+          date: today(),
+          tankId: d.tankId,
+          tankName: tank?.name || 'Tank',
+          litres: +d.litres,
+          type: d.type,
+          reason: d.reason || 'Routine dipstick calibration',
+          recordedBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Storekeeper'
+        })
+        L(p, `Fuel Tank Calibration: ${d.type} (${d.litres}L) on ${tank?.name || 'Tank'}`)
+        return p
+      }),
+
+    // B. BOAT & FLEET MAINTENANCE MANAGEMENT
     addBoat: d =>
       up(p => {
         p.boats = p.boats || []
@@ -855,9 +1427,11 @@ export function Store({ children }) {
       up(p => {
         p.maintenanceOrders = p.maintenanceOrders || []
         p.spareParts = p.spareParts || []
+        p.boatCostLedger = p.boatCostLedger || []
         p.seq.wo = p.seq.wo || 120
         const no = 'WO-' + String(p.seq.wo++).padStart(6, '0')
         const boat = (p.boats || []).find(b => b.id === d.boatId)
+        const seasonId = d.seasonId || p.activeSeasonId || 'seas_2026_q1'
         
         // Deduct spare parts used from inventory
         const partsList = d.parts || []
@@ -870,8 +1444,10 @@ export function Store({ children }) {
 
         const totalCost = (+d.partsCost || 0) + (+d.laborCost || 0) + (+d.otherCost || 0)
         let recoverable = 0
-        if (d.arrangement === 'Company-assisted (Deduct from fish)' || d.arrangement === 'Fisherman-paid (Credit)') {
+        if (d.arrangement === 'Company-assisted (Deduct from fish)' || d.arrangement === 'Fisherman-recoverable' || d.arrangement === 'Fisherman-paid (Credit)') {
           recoverable = totalCost
+        } else if (d.arrangement === 'Shared cost') {
+          recoverable = Math.round(totalCost * 0.5)
         }
 
         const woRecord = {
@@ -879,6 +1455,7 @@ export function Store({ children }) {
           no,
           date: d.date || today(),
           at: nowL(),
+          seasonId,
           boatId: d.boatId,
           supId: d.supId || boat?.ownerId || 'company',
           title: d.title,
@@ -893,12 +1470,45 @@ export function Store({ children }) {
           totalCost,
           recoverable,
           recovered: 0,
-          notes: d.notes || ''
+          notes: d.notes || '',
+          photoUrl: d.photoUrl || ''
         }
 
         p.maintenanceOrders.unshift(woRecord)
 
-        // Update boat status if in progress
+        // If recoverable from fisherman, post Debit to Central Fisherman Financial Ledger
+        if (recoverable > 0 && woRecord.supId && woRecord.supId !== 'company') {
+          postLedgerEntry(p, {
+            supId: woRecord.supId,
+            boatId: d.boatId,
+            seasonId,
+            date: d.date || today(),
+            type: 'Maintenance Repair',
+            debit: recoverable,
+            credit: 0,
+            source: 'maintenance',
+            refId: woRecord.id,
+            ref: no,
+            notes: `Repair work order: ${d.title} (Parts: ${d.partsCost}, Labor: ${d.laborCost})`,
+            createdBy: (p.staff || []).find(u => u.id === p.me)?.name || 'Fleet Manager'
+          })
+        }
+
+        // Post to Boat Cost Ledger
+        if (d.boatId) {
+          p.boatCostLedger.unshift({
+            id: uid('bc'),
+            boatId: d.boatId,
+            seasonId,
+            date: d.date || today(),
+            cat: 'Maintenance',
+            cost: totalCost,
+            allocation: recoverable === totalCost ? 'Fisherman-recoverable' : recoverable > 0 ? 'Shared' : 'Company-funded',
+            ref: no,
+            notes: `WO ${no}: ${d.title}`
+          })
+        }
+
         if (boat && d.status !== 'Completed') {
           boat.status = 'Under Maintenance'
         }
@@ -948,44 +1558,520 @@ export function Store({ children }) {
         return p
       }),
 
-    settleFisherman: d =>
+    // C. FISHING GEAR & EQUIPMENT MANAGEMENT
+    addGearItem: d =>
+      up(p => {
+        p.gearItems = p.gearItems || []
+        p.gearItems.push({
+          id: uid('gi'),
+          stock: +d.stock || 0,
+          minStock: +d.minStock || 5,
+          unitCost: +d.unitCost || 0,
+          sellPrice: +d.sellPrice || 0,
+          condition: d.condition || 'New',
+          ...d
+        })
+        L(p, `Registered fishing equipment: ${d.name} (${d.category})`)
+        return p
+      }),
+
+    issueGear: d =>
+      up(p => {
+        p.gearIssues = p.gearIssues || []
+        p.gearItems = p.gearItems || []
+        p.boatCostLedger = p.boatCostLedger || []
+        p.seq.gear = p.seq.gear || 100
+        const no = 'GEAR-' + String(p.seq.gear++).padStart(5, '0')
+        const seasonId = d.seasonId || p.activeSeasonId || 'seas_2026_q1'
+        const meUser = (p.staff || []).find(u => u.id === p.me)
+
+        // Deduct gear from catalog stock
+        const items = d.items || []
+        items.forEach(it => {
+          const catItem = p.gearItems.find(g => g.id === it.itemId)
+          if (catItem) {
+            catItem.stock = Math.max(0, (catItem.stock || 0) - (+it.qty || 1))
+          }
+        })
+
+        const totalCost = +d.totalCost || 0
+        const paid = +d.paid || 0
+        let recoverable = 0
+        if (d.arrangement === 'Fisherman-recoverable (Credit)' || d.arrangement === 'Credit / Deduct from fish') {
+          recoverable = Math.max(0, totalCost - paid)
+        }
+
+        const issueRecord = {
+          id: uid('giss'),
+          no,
+          date: d.date || today(),
+          at: nowL(),
+          supId: d.supId,
+          boatId: d.boatId,
+          seasonId,
+          items,
+          totalCost,
+          paid,
+          recoverable,
+          arrangement: d.arrangement,
+          status: 'Issued',
+          conditionOnIssue: d.conditionOnIssue || 'New',
+          returnedQty: 0,
+          issuedBy: meUser?.name || 'Storekeeper',
+          notes: d.notes || ''
+        }
+        p.gearIssues.unshift(issueRecord)
+
+        // Post Debit to Central Fisherman Financial Ledger if recoverable credit
+        if (recoverable > 0 && d.supId) {
+          postLedgerEntry(p, {
+            supId: d.supId,
+            boatId: d.boatId,
+            seasonId,
+            date: d.date || today(),
+            type: 'Gear Issued',
+            debit: recoverable,
+            credit: 0,
+            source: 'gear',
+            refId: issueRecord.id,
+            ref: no,
+            notes: `Fishing gear credit: ${items.map(i => `${i.name} (x${i.qty})`).join(', ')}`,
+            createdBy: meUser?.name || 'Storekeeper'
+          })
+        }
+
+        // Post to Boat Cost Ledger
+        if (d.boatId) {
+          p.boatCostLedger.unshift({
+            id: uid('bc'),
+            boatId: d.boatId,
+            seasonId,
+            date: d.date || today(),
+            cat: 'Gear',
+            cost: totalCost,
+            allocation: recoverable > 0 ? 'Fisherman-recoverable' : 'Company-funded',
+            ref: no,
+            notes: `${no}: Gear issued to boat`
+          })
+        }
+
+        L(p, `${no}: Issued fishing gear to ${d.supId} (Boat: ${d.boatId || 'Unassigned'}) - TZS ${totalCost} (Recoverable: ${recoverable})`)
+        return p
+      }),
+
+    returnGear: (id, d) =>
+      up(p => {
+        p.gearIssues = p.gearIssues || []
+        const issue = p.gearIssues.find(g => g.id === id)
+        if (issue) {
+          issue.status = d.status || 'Returned'
+          issue.returnedDate = today()
+          issue.returnedCondition = d.returnedCondition || 'Good'
+          issue.returnNotes = d.returnNotes || ''
+          
+          // If gear is undamaged and reusable, restock it
+          if (d.restock) {
+            issue.items.forEach(it => {
+              const catItem = p.gearItems.find(g => g.id === it.itemId)
+              if (catItem) {
+                catItem.stock = (catItem.stock || 0) + (+it.qty || 1)
+              }
+            })
+          }
+
+          L(p, `Gear Returned: ${issue.no} recorded as ${issue.status} (${issue.returnedCondition})`)
+        }
+        return p
+      }),
+
+    // D. FOOD & CATERING MANAGEMENT (MAMA MPISHI)
+    addCook: d =>
+      up(p => {
+        p.cateringCooks = p.cateringCooks || []
+        p.cateringCooks.push({
+          id: uid('ck'),
+          name: d.name,
+          phone: d.phone,
+          site: d.site || 'Main Landing Dock',
+          assignedBoats: d.assignedBoats || [],
+          rating: 'Reliable'
+        })
+        L(p, `Registered cook / Mama Mpishi: ${d.name}`)
+        return p
+      }),
+
+    issueCookAdvance: d =>
+      up(p => {
+        p.cookAdvances = p.cookAdvances || []
+        p.seq.cat = p.seq.cat || 100
+        const no = 'CADV-' + String(p.seq.cat++).padStart(5, '0')
+        const meUser = (p.staff || []).find(u => u.id === p.me)
+
+        const adv = {
+          id: uid('ca'),
+          no,
+          date: d.date || today(),
+          cookId: d.cookId,
+          amountIssued: +d.amountIssued || 0,
+          actualExpenditure: +d.actualExpenditure || 0,
+          moneyReturned: +d.moneyReturned || 0,
+          status: d.status || 'Issued',
+          purpose: d.purpose || 'Daily food market ingredients for crew',
+          allocatedBoats: d.allocatedBoats || [],
+          receiptDoc: d.receiptDoc || '',
+          issuedBy: meUser?.name || 'Accountant',
+          notes: d.notes || ''
+        }
+        p.cookAdvances.unshift(adv)
+        L(p, `${no}: Issued cash advance of TZS ${d.amountIssued} to cook (${d.cookId})`)
+        return p
+      }),
+
+    recordCateringExpense: d =>
+      up(p => {
+        p.cateringExpenses = p.cateringExpenses || []
+        p.boatCostLedger = p.boatCostLedger || []
+        const seasonId = d.seasonId || p.activeSeasonId || 'seas_2026_q1'
+        const no = 'CAT-' + uid('')
+        const meUser = (p.staff || []).find(u => u.id === p.me)
+
+        const catExp = {
+          id: uid('cat'),
+          no,
+          date: d.date || today(),
+          cookId: d.cookId,
+          advanceRef: d.advanceRef || '',
+          seasonId,
+          mealsCount: +d.mealsCount || 0,
+          crewSize: +d.crewSize || 0,
+          mealType: d.mealType || 'Daily Meals',
+          totalSpent: +d.totalSpent || 0,
+          boatAllocations: d.boatAllocations || [],
+          arrangement: d.arrangement || 'Fisherman-recoverable',
+          notes: d.notes || ''
+        }
+        p.cateringExpenses.unshift(catExp)
+
+        // For each boat allocated, if recoverable from fisherman, post Debit to Central Fisherman Financial Ledger
+        const allocations = d.boatAllocations || []
+        allocations.forEach(alloc => {
+          if (alloc.recoverable > 0 && alloc.supId && alloc.supId !== 'company') {
+            postLedgerEntry(p, {
+              supId: alloc.supId,
+              boatId: alloc.boatId,
+              seasonId,
+              date: d.date || today(),
+              type: 'Food & Catering',
+              debit: alloc.recoverable,
+              credit: 0,
+              source: 'catering',
+              refId: catExp.id,
+              ref: no,
+              notes: `Crew meals & food allowance (Boat ${alloc.boatId || 'Fleet'})`,
+              createdBy: meUser?.name || 'Catering Supervisor'
+            })
+          }
+
+          if (alloc.boatId) {
+            p.boatCostLedger.unshift({
+              id: uid('bc'),
+              boatId: alloc.boatId,
+              seasonId,
+              date: d.date || today(),
+              cat: 'Food',
+              cost: alloc.cost,
+              allocation: alloc.recoverable > 0 ? 'Fisherman-recoverable' : 'Company-funded',
+              ref: no,
+              notes: `Meals cost allocated`
+            })
+          }
+        })
+
+        // Also if linked to a cook advance, mark that advance as reconciled
+        if (d.advanceId) {
+          const adv = (p.cookAdvances || []).find(a => a.id === d.advanceId)
+          if (adv) {
+            adv.status = 'Reconciled'
+            adv.actualExpenditure = +d.totalSpent
+            adv.moneyReturned = Math.max(0, adv.amountIssued - (+d.totalSpent))
+          }
+        }
+
+        L(p, `${no}: Logged food catering expenditure of TZS ${d.totalSpent} across ${allocations.length} boats`)
+        return p
+      }),
+
+    // E. BOAT CONSTRUCTION & INVESTMENT MANAGEMENT
+    addBoatProject: d =>
+      up(p => {
+        p.boatProjects = p.boatProjects || []
+        p.seq.proj = p.seq.proj || 100
+        const projectNo = 'PROJ-BOAT-' + String(p.seq.proj++).padStart(3, '0')
+        const totalCost = (+d.timberMaterials || 0) + (+d.labour || 0) + (+d.engine || 0) + (+d.equipment || 0)
+        
+        const project = {
+          id: uid('bp'),
+          projectNo,
+          name: d.name,
+          builder: d.builder,
+          builderPhone: d.builderPhone || '',
+          seasonId: d.seasonId || p.activeSeasonId || 'seas_2026_q1',
+          assignedSupId: d.assignedSupId || '',
+          targetBoatName: d.targetBoatName || d.name,
+          status: 'Under Construction',
+          progressPct: +d.progressPct || 10,
+          startDate: d.startDate || today(),
+          targetCompletion: d.targetCompletion || '',
+          costBreakdown: {
+            timberMaterials: +d.timberMaterials || 0,
+            labour: +d.labour || 0,
+            engine: +d.engine || 0,
+            equipment: +d.equipment || 0,
+            total: totalCost
+          },
+          paidStages: +d.paidStages || 0,
+          balanceToPay: Math.max(0, totalCost - (+d.paidStages || 0)),
+          ownershipType: d.ownershipType || 'Company Asset with Fisherman Hire-Purchase',
+          contractualRecoverable: +d.contractualRecoverable || 0,
+          repaymentTerms: d.repaymentTerms || 'Staged deduction from fish catch',
+          stages: d.stages || [
+            { name: 'Keel Laying & Timber Framing', cost: Math.round(totalCost * 0.25), status: 'Completed', date: today() },
+            { name: 'Hull Planking & Ribs', cost: Math.round(totalCost * 0.25), status: 'In Progress', date: '' },
+            { name: 'Marine Engine Installation', cost: Math.round(totalCost * 0.35), status: 'Pending', date: '' },
+            { name: 'Deck Caulking, Painting & Sea Trials', cost: Math.round(totalCost * 0.15), status: 'Pending', date: '' }
+          ],
+          notes: d.notes || ''
+        }
+        p.boatProjects.unshift(project)
+        L(p, `${projectNo}: Registered new boat construction project "${d.name}" (Est TZS ${totalCost})`)
+        return p
+      }),
+
+    updateProjectProgress: (id, pct, status) =>
+      up(p => {
+        p.boatProjects = p.boatProjects || []
+        const proj = p.boatProjects.find(x => x.id === id)
+        if (proj) {
+          proj.progressPct = +pct
+          if (status) proj.status = status
+          if (status === 'Completed & Commissioned') {
+            // Automatically add to active fleet boats
+            p.boats = p.boats || []
+            const newBoatId = uid('boat')
+            p.boats.push({
+              id: newBoatId,
+              regNo: 'TZN-' + Math.floor(200 + Math.random() * 700),
+              name: proj.targetBoatName || proj.name,
+              ownerType: proj.ownershipType.includes('Company') ? 'Company-owned' : 'Fisherman-owned',
+              ownerId: proj.assignedSupId || 'company',
+              captain: 'Assigned Captain',
+              engine: 'Yamaha Outboard 40HP 2-Stroke',
+              boatType: 'Planked Wooden Mashua (12m)',
+              status: 'Operational',
+              engineHours: 0,
+              lastService: today(),
+              notes: `Commissioned from Project ${proj.projectNo}`
+            })
+          }
+          L(p, `Project ${proj.projectNo} progress updated to ${pct}% (${proj.status})`)
+        }
+        return p
+      }),
+
+    addProjectPayment: (id, amt, stageName) =>
+      up(p => {
+        p.boatProjects = p.boatProjects || []
+        const proj = p.boatProjects.find(x => x.id === id)
+        if (proj) {
+          proj.paidStages = (proj.paidStages || 0) + (+amt)
+          proj.balanceToPay = Math.max(0, (proj.costBreakdown?.total || 0) - proj.paidStages)
+          L(p, `Project ${proj.projectNo}: Recorded staged payment of TZS ${amt} for ${stageName}`)
+        }
+        return p
+      }),
+
+    // F. FISHERMAN CASH ADVANCES & DAILY MATUMIZI
+    requestAdvance: d =>
+      up(p => {
+        p.advances = p.advances || []
+        p.seq.adv = p.seq.adv || 100
+        const no = 'ADV-' + String(p.seq.adv++).padStart(5, '0')
+        const seasonId = d.seasonId || p.activeSeasonId || 'seas_2026_q1'
+        const sup = p.suppliers.find(s => s.id === d.supId)
+        const boat = (p.boats || []).find(b => b.ownerId === d.supId || b.id === d.boatId)
+
+        const adv = {
+          id: uid('adv'),
+          no,
+          date: d.date || today(),
+          at: nowL(),
+          supId: d.supId,
+          boatId: boat?.id || d.boatId || '',
+          seasonId,
+          amount: +d.amount || 0,
+          category: d.category || 'Daily Matumizi',
+          purpose: d.purpose || 'Crew allowances & fishing supplies',
+          method: d.method || 'M-Pesa (Mobile Money)',
+          phone: d.phone || sup?.phone || '',
+          status: 'Pending Approval',
+          classification: d.classification || 'Fisherman-recoverable',
+          approvedBy: '',
+          recovered: 0,
+          notes: d.notes || ''
+        }
+        p.advances.unshift(adv)
+        L(p, `${no}: Advance requested for ${sup?.name || 'Fisherman'} (TZS ${d.amount})`)
+        return p
+      }),
+
+    approveAdvance: (id, status, approvedAmount) =>
+      up(p => {
+        p.advances = p.advances || []
+        const adv = p.advances.find(x => x.id === id)
+        if (adv) {
+          const meUser = (p.staff || []).find(u => u.id === p.me)
+          adv.status = status // 'Approved' | 'Rejected'
+          adv.approvedBy = meUser?.name || 'General Manager'
+          if (approvedAmount && +approvedAmount > 0) {
+            adv.amount = +approvedAmount
+          }
+
+          // If approved, post Debit to Central Fisherman Financial Ledger if recoverable
+          if (status === 'Approved' && adv.classification === 'Fisherman-recoverable') {
+            postLedgerEntry(p, {
+              supId: adv.supId,
+              boatId: adv.boatId,
+              seasonId: adv.seasonId,
+              date: adv.date,
+              type: 'Cash Advance',
+              debit: adv.amount,
+              credit: 0,
+              source: 'advances',
+              refId: adv.id,
+              ref: adv.no,
+              notes: `${adv.category}: ${adv.purpose} (${adv.method})`,
+              createdBy: meUser?.name || 'Manager'
+            })
+          }
+
+          L(p, `Advance ${adv.no} status updated to ${status} for TZS ${adv.amount}`)
+        }
+        return p
+      }),
+
+    repayAdvance: (id, amt, m, notes = '') =>
+      up(p => {
+        p.advances = p.advances || []
+        const adv = p.advances.find(x => x.id === id)
+        const meUser = (p.staff || []).find(u => u.id === p.me)
+        if (adv) {
+          adv.recovered = (adv.recovered || 0) + (+amt)
+          const ref = 'REPAY-' + uid('')
+          
+          // Post Credit to Central Fisherman Financial Ledger
+          postLedgerEntry(p, {
+            supId: adv.supId,
+            boatId: adv.boatId,
+            seasonId: adv.seasonId,
+            date: today(),
+            type: 'Cash Advance Repayment',
+            debit: 0,
+            credit: +amt,
+            source: 'advances',
+            refId: ref,
+            ref,
+            notes: `Direct cash repayment for ${adv.no}: ${notes}`,
+            createdBy: meUser?.name || 'Accountant'
+          })
+
+          L(p, `Advance ${adv.no}: Logged partial recovery of TZS ${amt} (${m})`)
+        }
+        return p
+      }),
+
+    // G. SEASON SETTLEMENT MANAGEMENT (MASTER CONSOLIDATION MODULE)
+    createSeasonSettlement: d =>
       up(p => {
         p.settlements = p.settlements || []
         p.seq.set = p.seq.set || 40
         const no = 'SET-' + String(p.seq.set++).padStart(5, '0')
         const sup = p.suppliers.find(x => x.id === d.supId)
+        const boat = (p.boats || []).find(b => b.ownerId === d.supId || b.id === d.boatId)
+        const meUser = (p.staff || []).find(u => u.id === p.me)
+        const seasonId = d.seasonId || p.activeSeasonId || 'seas_2026_q1'
 
-        p.settlements.unshift({
+        const totalDeductions =
+          (+d.fuelDeducted || 0) +
+          (+d.maintDeducted || 0) +
+          (+d.gearDeducted || 0) +
+          (+d.foodDeducted || 0) +
+          (+d.advancesDeducted || 0) +
+          (+d.otherDeducted || 0)
+
+        const netPayable = Math.max(0, (+d.agreedEarnings || 0) - (+d.previousPaid || 0) - totalDeductions)
+
+        const settlementRecord = {
           id: uid('st'),
           no,
-          date: today(),
+          date: d.date || today(),
           at: nowL(),
-          purId: d.purId || '',
+          seasonId,
           supId: d.supId,
-          fishTotal: +d.fishTotal || 0,
+          boatId: boat?.id || d.boatId || '',
+          agreedEarnings: +d.agreedEarnings || 0,
+          previousPaid: +d.previousPaid || 0,
           fuelDeducted: +d.fuelDeducted || 0,
           maintDeducted: +d.maintDeducted || 0,
-          netPayable: +d.netPayable || 0,
+          gearDeducted: +d.gearDeducted || 0,
+          foodDeducted: +d.foodDeducted || 0,
+          advancesDeducted: +d.advancesDeducted || 0,
+          otherDeducted: +d.otherDeducted || 0,
+          totalDeductions,
+          netPayable,
           method: d.method || 'M-Pesa (Mobile Money)',
-          notes: d.notes || 'Automated fish purchase & credit recovery settlement'
-        })
+          status: 'Approved & Disbursed',
+          settlementType: d.settlementType || 'Full Season Settlement',
+          approvedBy: meUser?.name || 'Director',
+          notes: d.notes || 'Full season multi-module consolidated settlement'
+        }
 
-        // Also record the payout into p.pays if net payable > 0
-        if (+d.netPayable > 0) {
+        p.settlements.unshift(settlementRecord)
+
+        // Post Credit entry into Central Fisherman Financial Ledger offsetting the deductions!
+        if (totalDeductions > 0 && d.supId) {
+          postLedgerEntry(p, {
+            supId: d.supId,
+            boatId: boat?.id,
+            seasonId,
+            date: d.date || today(),
+            type: 'Settlement Deduction Offset',
+            debit: 0,
+            credit: totalDeductions,
+            source: 'settlement',
+            refId: settlementRecord.id,
+            ref: no,
+            notes: `Consolidated season credit offset: Fuel (${d.fuelDeducted || 0}), Food (${d.foodDeducted || 0}), Maint (${d.maintDeducted || 0}), Gear (${d.gearDeducted || 0}), Adv (${d.advancesDeducted || 0})`,
+            createdBy: meUser?.name || 'Director'
+          })
+        }
+
+        // If net payable is disbursed now, record payment into supplier payouts
+        if (netPayable > 0 && d.supId) {
           p.pays.push({
             id: uid('p'),
             sup: d.supId,
-            amt: +d.netPayable,
+            amt: netPayable,
             m: d.method || 'M-Pesa (Mobile Money)',
             date: today(),
             ref: no
           })
         }
 
-        L(p, `${no}: Net Settlement for ${sup?.name || d.supId} - Fish TZS ${d.fishTotal}, Fuel Off: TZS ${d.fuelDeducted || 0}, Maint Off: TZS ${d.maintDeducted || 0}, Net Paid: TZS ${d.netPayable}`)
+        L(p, `${no}: Finalized season settlement for ${sup?.name || d.supId} (Earnings: ${d.agreedEarnings}, Deductions: ${totalDeductions}, Net Disbursed: ${netPayable})`)
         return p
       }),
 
+    // Fisherman & Boat onboarding
     createFishermanAccount: d =>
       up(p => {
         p.suppliers = p.suppliers || []
@@ -1023,7 +2109,7 @@ export function Store({ children }) {
           boatId: boatId,
           boatReg: boatReg,
           nida: d.nida || '',
-          creditLimit: +d.creditLimit || 2000000,
+          creditLimit: +d.creditLimit || 2500000,
           status: 'Active',
           totalSupplied: 0
         }
