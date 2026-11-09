@@ -15,7 +15,7 @@ import {
   RefreshCw,
   Clock
 } from 'lucide-react'
-import { useS, SPECIES, tot, supBal, supFuelDebt, supMaintDebt, supAccountStatement, nowL } from '../store'
+import { useS, SPECIES, tot, supBal, supFuelDebt, supMaintDebt, supAccountStatement, nowL, canUserDo } from '../store'
 import {
   Modal,
   Field,
@@ -47,7 +47,8 @@ const init = {
 }
 
 export default function Buy() {
-  const { s, a } = useS()
+  const { s, a, me } = useS()
+  const canRecordCatch = canUserDo(me, 'canBuy')
   const [open, setOpen] = useState(false)
   const [rc, setRc] = useState(null)
   const [traceBatch, setTraceBatch] = useState(null)
@@ -127,15 +128,21 @@ export default function Buy() {
             Capture catches from fishermen, connect digital scales, and issue verified purchase vouchers.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setD({ ...init, sup: s.suppliers[0]?.id || '' })
-            setOpen(true)
-          }}
-          className="btn-primary"
-        >
-          <Plus size={16} /> New Fish Purchase (<span className="text-xs font-mono">&lt; 1 min</span>)
-        </button>
+        {canRecordCatch ? (
+          <button
+            onClick={() => {
+              setD({ ...init, sup: s.suppliers[0]?.id || '' })
+              setOpen(true)
+            }}
+            className="btn-primary"
+          >
+            <Plus size={16} /> New Fish Purchase (<span className="text-xs font-mono">&lt; 1 min</span>)
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-500 font-semibold">
+            <span>Read-Only Scale View</span>
+          </div>
+        )}
       </div>
 
       {/* Filter & Search Bar */}

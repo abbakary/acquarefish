@@ -25,7 +25,7 @@ import { useS, stock, landed } from '../store'
 import { Modal, Field, Badge, FishPhoto, TraceabilityModal, f, tzs } from '../ui'
 
 export default function Stock() {
-  const { s, a } = useS()
+  const { s, a, B } = useS()
   const [m, setM] = useState(null)
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [traceBatch, setTraceBatch] = useState(null)
@@ -110,7 +110,7 @@ export default function Stock() {
         </div>
         <div className="p-3.5 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-slate-900 m-0">Live Cold Room Holding Facility ({B.name})</h3>
+            <h3 className="text-sm font-bold text-slate-900 m-0">Live Cold Room Holding Facility ({B?.name || 'Main Pier'})</h3>
             <p className="text-xs text-slate-500 m-0 mt-0.5">
               Automated FIFO inventory rotation, blast freezer holding (-18°C), and continuous temperature data monitoring.
             </p>

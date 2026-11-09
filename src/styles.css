@@ -838,6 +838,86 @@ body {
   animation: waterShimmer 5.5s ease-in-out infinite;
 }
 
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes tickerScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+.animate-ticker {
+  display: flex;
+  width: max-content;
+  animation: tickerScroll 30s linear infinite;
+}
+
+.animate-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* Dukadigital / FishTrade Clean Wizard Styles */
+.wizard-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+.wizard-segment-active {
+  background-color: #0d7a68;
+}
+
+.wizard-segment-inactive {
+  background-color: #e2e8f0;
+}
+
+.wizard-btn-primary {
+  background-color: #0d7a68;
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wizard-btn-primary:hover:not(:disabled) {
+  background-color: #0a6556;
+  box-shadow: 0 4px 14px rgba(13, 122, 104, 0.3);
+}
+
+.wizard-input-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+}
+
 /* Mobile Bottom Navigation (Hidden on Desktop) */
 .mobile-bottom-nav {
   display: none;

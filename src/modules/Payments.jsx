@@ -9,11 +9,12 @@ import {
   Calendar,
   ArrowUpRight
 } from 'lucide-react'
-import { useS, supBal } from '../store'
+import { useS, supBal, canUserDo } from '../store'
 import { Modal, Field, Badge, ReceiptModal, f, tzs, fmtT } from '../ui'
 
 export default function Payments() {
-  const { s, a } = useS()
+  const { s, a, me } = useS()
+  const canDisburse = canUserDo(me, 'canPay')
   const [payTarget, setPayTarget] = useState(null)
   const [amt, setAmt] = useState('')
   const [method, setMethod] = useState('M-Pesa (Mobile Money)')
@@ -54,6 +55,15 @@ export default function Payments() {
           </p>
         </div>
       </div>
+
+      {!canDisburse && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between">
+          <span>
+            <strong>View-Only Security Notice:</strong> Your user profile has read-only access to fishermen accounts. Catch payment disbursement requires authorized finance permission.
+          </span>
+          <Badge variant="amber">Audit / Read-Only</Badge>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="kpi-grid">
@@ -133,15 +143,21 @@ export default function Payments() {
                     </td>
                     <td className="text-right">
                       {bal > 0 ? (
-                        <button
-                          onClick={() => {
-                            setPayTarget(y)
-                            setAmt(String(bal))
-                          }}
-                          className="btn-primary text-xs py-1 px-3 bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          Disburse Payment
-                        </button>
+                        canDisburse ? (
+                          <button
+                            onClick={() => {
+                              setPayTarget(y)
+                              setAmt(String(bal))
+                            }}
+                            className="btn-primary text-xs py-1 px-3 bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            Disburse Payment
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-mono italic">
+                            Disbursement Restricted
+                          </span>
+                        )
                       ) : (
                         <span className="text-xs text-emerald-700 font-semibold">Settled</span>
                       )}

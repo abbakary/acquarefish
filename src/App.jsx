@@ -35,7 +35,7 @@ import {
   Ship,
   Search
 } from 'lucide-react'
-import { useS, ROLES } from './store'
+import { useS, ROLES, canUserAccessModule, getUserAllowedModules, canUserDo } from './store'
 import Home from './modules/Home'
 import Crew from './modules/Crew'
 import Buy from './modules/Buy'
@@ -62,7 +62,7 @@ import Super from './modules/Super'
 import Landing from './modules/Landing'
 import Register from './modules/Register'
 import Login from './modules/Login'
-import { PWAInstallButton, OfflineIndicator } from './ui'
+import { PWAInstallButton, OfflineIndicator, Badge } from './ui'
 
 class ModuleErrorBoundary extends React.Component {
   constructor(props) {
@@ -292,7 +292,8 @@ export default function App() {
   }
 
   const hq = !me.branch || me.branch === 'all'
-  const isAllowed = k => !ROLES[s.role] || ROLES[s.role].includes(k)
+  const isAllowed = k => canUserAccessModule(me, k)
+  const userAllowedList = getUserAllowedModules(me)
 
   const navMatchingBoats = (s?.boats || []).filter(b => {
     const q = boatNavSearch.toLowerCase().trim()
@@ -310,7 +311,7 @@ export default function App() {
     )
   })
 
-  const currentTab = isAllowed(tab) ? tab : 'home'
+  const currentTab = isAllowed(tab) ? tab : userAllowedList[0] || 'home'
   const activeGroup = MODULE_GROUPS.find(g => g.items.includes(currentTab))?.id || 'central_shared'
   const ActiveComponent = MODULE_DEFS[currentTab]?.component || Home
 
@@ -590,6 +591,16 @@ export default function App() {
 
             {/* PWA Install Button */}
             <PWAInstallButton />
+
+            {me?.branch && me.branch !== 'all' && (
+              <span
+                className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold shrink-0"
+                title={`Access restricted to ${B?.name || 'Assigned Station'}`}
+              >
+                <MapPin size={11} className="text-amber-700" />
+                Station Restricted
+              </span>
+            )}
 
             {/* User Profile */}
             <div className="user-pill">

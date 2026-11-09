@@ -28,6 +28,71 @@ export const ROLES = {
   Auditor: ['home', 'crew', 'hq', 'buy', 'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement', 'stock', 'sales', 'suppliers', 'quality', 'payments', 'transport', 'expenses', 'compliance', 'audit', 'reports']
 }
 
+export const ALL_MODULE_KEYS = [
+  'home', 'hq',
+  'crew', 'suppliers', 'buy', 'stock', 'sales', 'payments', 'quality', 'transport',
+  'fuel', 'maintenance', 'gear', 'catering', 'investment', 'advances', 'settlement',
+  'expenses', 'compliance', 'reports', 'audit', 'staff'
+]
+
+export const PERMISSIONS_LIST = [
+  { key: 'canBuy', label: 'Record Catch Weigh-in & Purchases', group: 'Fish Trade', desc: 'Capture dockside scale weights, species, and issue vouchers' },
+  { key: 'canPay', label: 'Disburse Catch Payments', group: 'Fish Trade', desc: 'Issue cash, M-Pesa, Airtel Money or bank disbursements' },
+  { key: 'canInspectQuality', label: 'HACCP Quality & Inspection', group: 'Fish Trade', desc: 'Record core temperature, organoleptic grades, reject lots' },
+  { key: 'canManageSales', label: 'Factory Sales & Invoicing', group: 'Fish Trade', desc: 'Create delivery dispatches and factory commercial invoices' },
+  { key: 'canIssueFuel', label: 'Dispense Fuel to Vessels', group: 'Lake Operations', desc: 'Issue petrol/diesel from tanks to boats and captains' },
+  { key: 'canApproveAdvances', label: 'Approve Cash Advances', group: 'Lake Operations', desc: 'Authorize crew emergency loans and daily stipends' },
+  { key: 'canManageGear', label: 'Issue Fishing Gear & Assets', group: 'Lake Operations', desc: 'Issue gill nets, solar lamps, ropes and life vests' },
+  { key: 'canManageFleet', label: 'Fleet Maintenance Work Orders', group: 'Lake Operations', desc: 'Open boat repair work orders and allocate spare parts' },
+  { key: 'canSettleSeason', label: 'Season Settlement & Closing', group: 'Lake Operations', desc: 'Audit final crew accounts and close seasonal statements' },
+  { key: 'canViewReports', label: 'Financial & Operational Reports', group: 'Governance & BI', desc: 'View profit margins, branch comparisons and ledgers' },
+  { key: 'canManageStaff', label: 'Manage Staff & Security Access', group: 'Governance & BI', desc: 'Create users, modify permissions, reset PINs' },
+  { key: 'canExport', label: 'Export Data & Official Documents', group: 'Governance & BI', desc: 'Download CSVs, print FiRCIS permits and share receipts' }
+]
+
+export const DEFAULT_ROLE_PERMS = {
+  Owner: { canBuy: true, canPay: true, canInspectQuality: true, canManageSales: true, canIssueFuel: true, canApproveAdvances: true, canManageGear: true, canManageFleet: true, canSettleSeason: true, canViewReports: true, canManageStaff: true, canExport: true },
+  'General Manager': { canBuy: true, canPay: true, canInspectQuality: true, canManageSales: true, canIssueFuel: true, canApproveAdvances: true, canManageGear: true, canManageFleet: true, canSettleSeason: true, canViewReports: true, canManageStaff: true, canExport: true },
+  'Purchasing Officer': { canBuy: true, canPay: false, canInspectQuality: false, canManageSales: false, canIssueFuel: true, canApproveAdvances: false, canManageGear: true, canManageFleet: false, canSettleSeason: false, canViewReports: false, canManageStaff: false, canExport: true },
+  'Quality Inspector': { canBuy: false, canPay: false, canInspectQuality: true, canManageSales: false, canIssueFuel: false, canApproveAdvances: false, canManageGear: false, canManageFleet: false, canSettleSeason: false, canViewReports: false, canManageStaff: false, canExport: true },
+  Storekeeper: { canBuy: false, canPay: false, canInspectQuality: false, canManageSales: false, canIssueFuel: true, canApproveAdvances: false, canManageGear: true, canManageFleet: true, canSettleSeason: false, canViewReports: false, canManageStaff: false, canExport: false },
+  Accountant: { canBuy: false, canPay: true, canInspectQuality: false, canManageSales: true, canIssueFuel: false, canApproveAdvances: true, canManageGear: false, canManageFleet: false, canSettleSeason: true, canViewReports: true, canManageStaff: false, canExport: true },
+  'Sales Officer': { canBuy: false, canPay: false, canInspectQuality: false, canManageSales: true, canIssueFuel: false, canApproveAdvances: false, canManageGear: false, canManageFleet: false, canSettleSeason: false, canViewReports: true, canManageStaff: false, canExport: true },
+  'Transport Officer': { canBuy: false, canPay: false, canInspectQuality: false, canManageSales: false, canIssueFuel: true, canApproveAdvances: false, canManageGear: false, canManageFleet: true, canSettleSeason: false, canViewReports: false, canManageStaff: false, canExport: false },
+  Auditor: { canBuy: false, canPay: false, canInspectQuality: false, canManageSales: false, canIssueFuel: false, canApproveAdvances: false, canManageGear: false, canManageFleet: false, canSettleSeason: false, canViewReports: true, canManageStaff: false, canExport: true }
+}
+
+export const getUserAllowedModules = user => {
+  if (!user) return []
+  if (user.role === 'Owner' || user.role === 'General Manager') {
+    return user.customModules && user.customModules.length > 0 ? user.customModules : ALL_MODULE_KEYS
+  }
+  if (user.customModules && Array.isArray(user.customModules) && user.customModules.length > 0) {
+    return user.customModules
+  }
+  const roleMods = ROLES[user.role]
+  if (roleMods === 0 || !roleMods) return ALL_MODULE_KEYS
+  return roleMods
+}
+
+export const canUserAccessModule = (user, modKey) => {
+  if (!user) return false
+  if (user.role === 'Owner') return true
+  if (user.role === 'General Manager' && (!user.customModules || user.customModules.length === 0)) return true
+  const allowed = getUserAllowedModules(user)
+  return allowed.includes(modKey)
+}
+
+export const canUserDo = (user, actionKey) => {
+  if (!user) return false
+  if (user.role === 'Owner') return true
+  if (user.permissions && typeof user.permissions[actionKey] === 'boolean') {
+    return user.permissions[actionKey]
+  }
+  const def = DEFAULT_ROLE_PERMS[user.role]
+  return def ? !!def[actionKey] : false
+}
+
 export const uid = p => p + Math.random().toString(36).slice(2, 8)
 export const nowL = () => {
   const d = new Date()

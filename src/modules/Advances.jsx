@@ -19,11 +19,12 @@ import {
   ArrowDownRight,
   RotateCcw
 } from 'lucide-react'
-import { useS, supAdvancesDebt } from '../store'
+import { useS, supAdvancesDebt, canUserDo } from '../store'
 import { Modal, Field, Badge, f, tzs, fmtT } from '../ui'
 
 export default function Advances() {
-  const { s, a } = useS()
+  const { s, a, me } = useS()
+  const canApprove = canUserDo(me, 'canApproveAdvances')
   const [tab, setTab] = useState('requests') // 'requests' | 'history' | 'repayments'
   const [requestModalOpen, setRequestModalOpen] = useState(false)
   const [approvalModalOpen, setApprovalModalOpen] = useState(false)
@@ -274,20 +275,26 @@ export default function Advances() {
                       </td>
                       <td className="text-right">
                         {adv.status === 'Pending Approval' ? (
-                          <button
-                            onClick={() => {
-                              setSelectedAdvance(adv)
-                              setApprovalForm({
-                                status: 'Approved',
-                                approvedAmount: String(adv.amount),
-                                notes: 'Approved by manager'
-                              })
-                              setApprovalModalOpen(true)
-                            }}
-                            className="px-2.5 py-1 rounded bg-blue-900 hover:bg-blue-800 text-white text-xs font-semibold inline-flex items-center gap-1 transition"
-                          >
-                            <BadgeCheck size={13} /> Review Request
-                          </button>
+                          canApprove ? (
+                            <button
+                              onClick={() => {
+                                setSelectedAdvance(adv)
+                                setApprovalForm({
+                                  status: 'Approved',
+                                  approvedAmount: String(adv.amount),
+                                  notes: 'Approved by manager'
+                                })
+                                setApprovalModalOpen(true)
+                              }}
+                              className="px-2.5 py-1 rounded bg-blue-900 hover:bg-blue-800 text-white text-xs font-semibold inline-flex items-center gap-1 transition"
+                            >
+                              <BadgeCheck size={13} /> Review Request
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-mono italic">
+                              Approval Restricted
+                            </span>
+                          )
                         ) : (
                           <button
                             onClick={() => {

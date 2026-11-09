@@ -327,10 +327,10 @@ export default function Hq({ go }) {
       {open && (
         <Modal
           title="Add New Landing Station Branch"
-          subtitle={`Your ${T.plan} plan allows up to ${lim} stations.`}
+          subtitle={`Your ${T?.plan || 'Business'} plan allows up to ${lim} stations.`}
           onClose={() => setOpen(false)}
         >
-          {T.branches.length >= lim ? (
+          {(T?.branches || []).length >= lim ? (
             <p className="text-sm text-rose-700">
               Station limit reached for your current subscription. Please upgrade to Business or Enterprise.
             </p>
